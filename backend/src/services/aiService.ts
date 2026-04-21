@@ -55,14 +55,13 @@ async function editWithGPT4o(imageDataUrl: string, instruction: string): Promise
   console.log('instruction:', instruction);
   console.log('────────────────────────────────────────────────────\n');
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const response = await (openai as any).responses.create({
+  const response = await openai.responses.create({
     model: 'gpt-4o',
     input: [
       {
         role: 'user',
         content: [
-          { type: 'input_image', image_url: imageDataUrl },
+          { type: 'input_image', image_url: imageDataUrl, detail: 'high' },
           { type: 'input_text',  text: instruction },
         ],
       },
@@ -70,9 +69,9 @@ async function editWithGPT4o(imageDataUrl: string, instruction: string): Promise
     tools: [{ type: 'image_generation' }],
   });
 
-  console.log('Response output types:', (response.output ?? []).map((o: { type: string }) => o.type));
+  console.log('Response output types:', response.output.map((o) => o.type));
 
-  for (const item of (response.output ?? []) as Array<{ type: string; result?: string }>) {
+  for (const item of response.output) {
     if (item.type === 'image_generation_call' && item.result) {
       console.log('Got image_generation_call result, length:', item.result.length);
       return item.result; // base64 string
