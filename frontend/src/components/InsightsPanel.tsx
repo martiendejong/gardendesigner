@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { DesignResult } from '../lib/types';
 
 interface Props {
@@ -6,6 +7,7 @@ interface Props {
   placing: boolean;
   onFlowMode: () => void;
   onPlaceObject: () => void;
+  onAdjust: (instruction: string) => void;
 }
 
 function HarmonyRing({ level }: { level: number }) {
@@ -31,7 +33,23 @@ function HarmonyRing({ level }: { level: number }) {
   );
 }
 
-export function InsightsPanel({ result, refreshing, placing, onFlowMode, onPlaceObject }: Props) {
+export function InsightsPanel({ result, refreshing, placing, onFlowMode, onPlaceObject, onAdjust }: Props) {
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustText, setAdjustText] = useState('');
+
+  function openAdjust() {
+    if (!result?.suggestedObject) return;
+    const { name, description } = result.suggestedObject;
+    setAdjustText(`Place a ${name} (${description}) in the most natural and suitable spot in this garden.`);
+    setAdjustOpen(true);
+  }
+
+  function submitAdjust() {
+    if (!adjustText.trim()) return;
+    onAdjust(adjustText.trim());
+    setAdjustOpen(false);
+  }
+
   return (
     <div style={{
       width: 282, flexShrink: 0,
@@ -144,12 +162,59 @@ export function InsightsPanel({ result, refreshing, placing, onFlowMode, onPlace
                       </>
                     ) : 'Place Object'}
                   </button>
-                  <button style={{
-                    padding: '7px 14px', background: 'transparent',
-                    border: '1px solid #2a2a2a', borderRadius: 6,
-                    color: '#888', fontSize: 12, cursor: 'pointer',
-                  }}>Adjust &gt;</button>
+                  <button
+                    onClick={openAdjust}
+                    disabled={placing}
+                    style={{
+                      padding: '7px 14px', background: adjustOpen ? '#1a1a1a' : 'transparent',
+                      border: `1px solid ${adjustOpen ? '#3a3a3a' : '#2a2a2a'}`, borderRadius: 6,
+                      color: adjustOpen ? '#c0c0c0' : '#888', fontSize: 12, cursor: placing ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                  >Adjust &gt;</button>
                 </div>
+
+                {/* Inline adjust panel */}
+                {adjustOpen && (
+                  <div style={{ marginTop: 10 }}>
+                    <textarea
+                      value={adjustText}
+                      onChange={e => setAdjustText(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submitAdjust(); }}
+                      rows={3}
+                      style={{
+                        width: '100%', boxSizing: 'border-box',
+                        background: '#0e0e0e', border: '1px solid #2a2a2a',
+                        borderRadius: 6, color: '#c0c0c0', fontSize: 11,
+                        padding: '7px 9px', resize: 'none', lineHeight: 1.5,
+                        fontFamily: 'inherit', outline: 'none',
+                      }}
+                    />
+                    <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                      <button
+                        onClick={submitAdjust}
+                        disabled={!adjustText.trim() || placing}
+                        style={{
+                          flex: 1, padding: '6px 0',
+                          background: (!adjustText.trim() || placing) ? '#1e2a14' : '#7ab648',
+                          border: 'none', borderRadius: 5,
+                          color: (!adjustText.trim() || placing) ? '#4a6a2a' : '#fff',
+                          fontSize: 11, fontWeight: 600,
+                          cursor: (!adjustText.trim() || placing) ? 'not-allowed' : 'pointer',
+                          transition: 'background 0.15s',
+                        }}
+                      >Apply</button>
+                      <button
+                        onClick={() => setAdjustOpen(false)}
+                        style={{
+                          padding: '6px 10px', background: 'transparent',
+                          border: '1px solid #2a2a2a', borderRadius: 5,
+                          color: '#666', fontSize: 11, cursor: 'pointer',
+                        }}
+                      >Cancel</button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </>
