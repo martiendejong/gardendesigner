@@ -45,7 +45,7 @@ export function InsightsPanel({ result, refreshing, placing, onFlowMode, onPlace
   }
 
   function submitAdjust() {
-    if (!adjustText.trim()) return;
+    if (!adjustText.trim() || placing) return;
     onAdjust(adjustText.trim());
     setAdjustOpen(false);
   }
