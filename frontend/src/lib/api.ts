@@ -1,4 +1,4 @@
-import type { GardenPreferences, DesignResult, SuggestedObject } from './types';
+import type { GardenPreferences, DesignResult, SuggestedObject, SegmentedObject } from './types';
 
 const API = '/api';
 
@@ -30,6 +30,17 @@ export async function applyInstruction(imageDataUrl: string, instruction: string
   }
   const data = await res.json() as { imageUrl: string };
   return data.imageUrl;
+}
+
+export async function segmentImage(imageDataUrl: string): Promise<SegmentedObject[]> {
+  const res = await fetch(`${API}/segment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imageDataUrl }),
+  });
+  if (!res.ok) return [];
+  const data = await res.json() as { objects: SegmentedObject[] };
+  return data.objects ?? [];
 }
 
 export async function refreshInsights(

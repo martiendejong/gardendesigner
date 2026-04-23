@@ -1,4 +1,4 @@
-import type { DesignResult } from '../lib/types';
+import type { DesignResult, SuggestedPlacement } from '../lib/types';
 
 interface Props {
   result: DesignResult | null;
@@ -6,6 +6,10 @@ interface Props {
   placing: boolean;
   onFlowMode: () => void;
   onPlaceObject: () => void;
+  suggestedPlacements: SuggestedPlacement[];
+  onInstruction: (text: string) => void;
+  onProceedToArrange: () => void;
+  segmenting: boolean;
 }
 
 function HarmonyRing({ level }: { level: number }) {
@@ -31,7 +35,7 @@ function HarmonyRing({ level }: { level: number }) {
   );
 }
 
-export function InsightsPanel({ result, refreshing, placing, onFlowMode, onPlaceObject }: Props) {
+export function InsightsPanel({ result, refreshing, placing: _placing, onFlowMode, onPlaceObject: _onPlaceObject, suggestedPlacements, onInstruction, onProceedToArrange, segmenting }: Props) {
   return (
     <div style={{
       width: 282, flexShrink: 0,
@@ -93,65 +97,44 @@ export function InsightsPanel({ result, refreshing, placing, onFlowMode, onPlace
               </div>
             )}
 
-            {/* Auto-Placement */}
-            <div style={{ borderRadius: 8, border: '1px solid #222', overflow: 'hidden' }}>
-              <div style={{
-                padding: '8px 12px', background: '#161616',
-                borderBottom: '1px solid #1e1e1e',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              }}>
-                <span style={{ fontSize: 11, color: '#888' }}>⊕ Auto-Placement</span>
-                <span style={{ color: '#2e2e2e', fontSize: 14, letterSpacing: 2 }}>•••</span>
-              </div>
-
-              <div style={{ padding: 12, background: '#131313' }}>
-                <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-                  <div style={{
-                    width: 52, height: 52, borderRadius: 7, flexShrink: 0,
-                    background: 'linear-gradient(135deg, #3d2e1a, #5c461e)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 22,
-                  }}>🪴</div>
-                  <div>
-                    <p style={{ fontSize: 12, fontWeight: 600, color: '#e0e0e0', marginBottom: 2 }}>
-                      {result.suggestedObject.name}
-                    </p>
-                    <p style={{ fontSize: 10, color: '#666', marginBottom: 3 }}>Suggested for this Spot.</p>
-                    <p style={{ fontSize: 10, color: '#555', lineHeight: 1.4 }}>{result.suggestedObject.reason}</p>
-                  </div>
+            {/* Suggested Objects */}
+            {suggestedPlacements.length > 0 && (
+              <div style={{ borderRadius: 8, border: '1px solid #222', overflow: 'hidden' }}>
+                <div style={{
+                  padding: '8px 12px', background: '#161616',
+                  borderBottom: '1px solid #1e1e1e',
+                }}>
+                  <span style={{ fontSize: 11, color: '#888' }}>⊕ Suggested Objects</span>
                 </div>
-
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    onClick={onPlaceObject}
-                    disabled={placing}
-                    style={{
-                      flex: 1, padding: '7px 0',
-                      background: placing ? '#2a3a1a' : '#7ab648',
-                      border: 'none', borderRadius: 6,
-                      color: placing ? '#7ab648' : '#fff',
-                      fontSize: 12, fontWeight: 600,
-                      cursor: placing ? 'not-allowed' : 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      transition: 'background 0.2s',
-                    }}
-                  >
-                    {placing ? (
-                      <>
-                        <span className="dot" style={{ width: 5, height: 5 }} />
-                        <span className="dot" style={{ width: 5, height: 5 }} />
-                        <span className="dot" style={{ width: 5, height: 5 }} />
-                      </>
-                    ) : 'Place Object'}
-                  </button>
-                  <button style={{
-                    padding: '7px 14px', background: 'transparent',
-                    border: '1px solid #2a2a2a', borderRadius: 6,
-                    color: '#888', fontSize: 12, cursor: 'pointer',
-                  }}>Adjust &gt;</button>
+                <div style={{
+                  padding: 10, background: '#131313',
+                  display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8,
+                }}>
+                  {suggestedPlacements.map((item, i) => (
+                    <div key={i} style={{
+                      background: '#1a1a1a', borderRadius: 7,
+                      border: '1px solid #242424', padding: '8px 8px 6px',
+                      display: 'flex', flexDirection: 'column', gap: 4,
+                    }}>
+                      <div style={{ fontSize: 22, textAlign: 'center', lineHeight: 1 }}>{item.emoji}</div>
+                      <p style={{ fontSize: 10, fontWeight: 600, color: '#d0d0d0', textAlign: 'center', lineHeight: 1.3 }}>{item.name}</p>
+                      <p style={{ fontSize: 9, color: '#555', textAlign: 'center', lineHeight: 1.3, marginBottom: 2 }}>{item.description}</p>
+                      <button
+                        onClick={() => onInstruction(item.instruction)}
+                        style={{
+                          padding: '4px 0', background: 'rgba(122,182,72,0.1)',
+                          border: '1px solid #3a6a28', borderRadius: 5,
+                          color: '#7ab648', fontSize: 10, fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Place →
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
+            )}
           </>
         ) : refreshing ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, paddingTop: 40 }}>
@@ -170,8 +153,33 @@ export function InsightsPanel({ result, refreshing, placing, onFlowMode, onPlace
         )}
       </div>
 
-      {/* Flow Mode */}
-      <div style={{ padding: '12px 16px', borderTop: '1px solid #1a1a1a', flexShrink: 0 }}>
+      {/* Arrange + Flow Mode */}
+      <div style={{ padding: '12px 16px', borderTop: '1px solid #1a1a1a', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {result && (
+          <button
+            onClick={onProceedToArrange}
+            disabled={segmenting}
+            style={{
+              width: '100%', padding: '10px 14px',
+              background: segmenting ? '#1a2e10' : '#7ab648',
+              border: 'none', borderRadius: 8,
+              color: segmenting ? '#7ab648' : '#fff',
+              cursor: segmenting ? 'not-allowed' : 'pointer',
+              fontSize: 13, fontWeight: 700,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              transition: 'background 0.2s',
+            }}
+          >
+            {segmenting ? (
+              <>
+                <span className="dot" style={{ width: 5, height: 5 }} />
+                <span className="dot" style={{ width: 5, height: 5 }} />
+                <span className="dot" style={{ width: 5, height: 5 }} />
+                <span style={{ marginLeft: 4 }}>Scanning...</span>
+              </>
+            ) : 'Arrange Objects →'}
+          </button>
+        )}
         <button
           onClick={onFlowMode}
           disabled={!result}

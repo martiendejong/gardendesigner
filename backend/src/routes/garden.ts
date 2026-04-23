@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { analyzeAndDesign, refreshInsights, applyInstruction } from '../services/aiService';
+import { analyzeAndDesign, refreshInsights, applyInstruction, segmentObjects } from '../services/aiService';
 
 export const gardenRouter = Router();
 
@@ -35,6 +35,18 @@ gardenRouter.post('/apply', async (req: Request, res: Response): Promise<void> =
   } catch (err) {
     console.error('[/api/apply]', err);
     res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to apply instruction' });
+  }
+});
+
+gardenRouter.post('/segment', async (req: Request, res: Response): Promise<void> => {
+  const { imageDataUrl } = req.body;
+  if (!imageDataUrl) { res.status(400).json({ error: 'imageDataUrl required' }); return; }
+  try {
+    const objects = await segmentObjects(imageDataUrl);
+    res.json({ objects });
+  } catch (err) {
+    console.error('[/api/segment]', err);
+    res.status(500).json({ error: 'Segmentation failed' });
   }
 });
 
