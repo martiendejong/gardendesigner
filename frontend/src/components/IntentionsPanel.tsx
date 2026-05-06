@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import type { GardenPreferences } from '../lib/types';
+import { useI18n } from '../lib/i18n';
 
 interface Props {
   preferences: GardenPreferences;
@@ -15,16 +16,16 @@ interface Props {
   onInstruction: (text: string) => void;
 }
 
-const MOODS: { value: GardenPreferences['mood']; label: string; icon: string; gradient: string; glowColor: string }[] = [
-  { value: 'tranquil', label: 'Tranquil',  icon: '🌿', gradient: 'linear-gradient(160deg, #1a3d2a 0%, #0c2015 100%)', glowColor: 'rgba(40,140,70,0.2)' },
-  { value: 'social',   label: 'Social',    icon: '🌻', gradient: 'linear-gradient(160deg, #3d2e1a 0%, #201508 100%)', glowColor: 'rgba(200,160,78,0.2)' },
-  { value: 'intimate', label: 'Intimate',  icon: '🌙', gradient: 'linear-gradient(160deg, #2a1a3d 0%, #140a20 100%)', glowColor: 'rgba(139,126,200,0.2)' },
+const MOODS: { value: GardenPreferences['mood']; labelKey: 'mood.tranquil' | 'mood.social' | 'mood.intimate'; icon: string; gradient: string; glowColor: string }[] = [
+  { value: 'tranquil', labelKey: 'mood.tranquil',  icon: '🌿', gradient: 'linear-gradient(160deg, #1a3d2a 0%, #0c2015 100%)', glowColor: 'rgba(40,140,70,0.2)' },
+  { value: 'social',   labelKey: 'mood.social',    icon: '🌻', gradient: 'linear-gradient(160deg, #3d2e1a 0%, #201508 100%)', glowColor: 'rgba(200,160,78,0.2)' },
+  { value: 'intimate', labelKey: 'mood.intimate',  icon: '🌙', gradient: 'linear-gradient(160deg, #2a1a3d 0%, #140a20 100%)', glowColor: 'rgba(139,126,200,0.2)' },
 ];
 
-const TIMES: { value: GardenPreferences['timeOfUse']; label: string; icon: string; gradient: string; glowColor: string }[] = [
-  { value: 'morning', label: 'Morning', icon: '🌅', gradient: 'linear-gradient(160deg, #3d3a1a 0%, #201e08 100%)', glowColor: 'rgba(210,180,60,0.15)' },
-  { value: 'daytime', label: 'Daytime', icon: '☀️',  gradient: 'linear-gradient(160deg, #1a2e3d 0%, #0a1520 100%)', glowColor: 'rgba(60,140,210,0.15)' },
-  { value: 'evening', label: 'Evening', icon: '🌆', gradient: 'linear-gradient(160deg, #1a1a30 0%, #0a0a18 100%)', glowColor: 'rgba(100,80,180,0.15)' },
+const TIMES: { value: GardenPreferences['timeOfUse']; labelKey: 'time.morning' | 'time.daytime' | 'time.evening'; icon: string; gradient: string; glowColor: string }[] = [
+  { value: 'morning', labelKey: 'time.morning', icon: '🌅', gradient: 'linear-gradient(160deg, #3d3a1a 0%, #201e08 100%)', glowColor: 'rgba(210,180,60,0.15)' },
+  { value: 'daytime', labelKey: 'time.daytime', icon: '☀️',  gradient: 'linear-gradient(160deg, #1a2e3d 0%, #0a1520 100%)', glowColor: 'rgba(60,140,210,0.15)' },
+  { value: 'evening', labelKey: 'time.evening', icon: '🌆', gradient: 'linear-gradient(160deg, #1a1a30 0%, #0a0a18 100%)', glowColor: 'rgba(100,80,180,0.15)' },
 ];
 
 export function IntentionsPanel({
@@ -32,6 +33,7 @@ export function IntentionsPanel({
   onImageUpload, onMoodChange, onTimeChange, onVisibilityChange,
   onStartCreating, onInstruction,
 }: Props) {
+  const { t } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [draft, setDraft] = useState('');
@@ -42,8 +44,8 @@ export function IntentionsPanel({
   useEffect(() => {
     if (!applying && lastSent) {
       setConfirmed(true);
-      const t = setTimeout(() => { setConfirmed(false); setLastSent(''); }, 2000);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => { setConfirmed(false); setLastSent(''); }, 2000);
+      return () => clearTimeout(timer);
     }
   }, [applying, lastSent]);
 
@@ -69,7 +71,7 @@ export function IntentionsPanel({
   const canSend = hasImage && !!draft.trim() && !applying && !generating;
 
   return (
-    <div style={{
+    <div className="marble-green" style={{
       width: 272, flexShrink: 0,
       borderRight: '1px solid var(--garden-border)',
       display: 'flex', flexDirection: 'column',
@@ -81,24 +83,23 @@ export function IntentionsPanel({
       <div style={{
         flex: 1, overflowY: 'auto', padding: '18px 16px',
         display: 'flex', flexDirection: 'column', gap: 18,
+        position: 'relative', zIndex: 1,
       }}>
-        {/* Section title */}
         <div>
           <h2 style={{
             fontSize: 10, fontWeight: 700, color: 'var(--green-400)',
-            letterSpacing: '0.16em', textTransform: 'uppercase',
-            marginBottom: 2,
+            letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 2,
           }}>
-            Set Your Intentions
+            {t('intentions.title')}
           </h2>
           <p style={{ fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
-            Define how your garden should feel
+            {t('intentions.subtitle')}
           </p>
         </div>
 
         {/* Upload zone */}
         <div>
-          <p className="section-label">Garden Photo</p>
+          <p className="section-label">{t('intentions.photo')}</p>
           <div
             onClick={() => fileRef.current?.click()}
             onDrop={handleDrop}
@@ -120,7 +121,6 @@ export function IntentionsPanel({
                   width: '100%', height: 88, objectFit: 'cover', display: 'block',
                   borderRadius: 'var(--radius-lg)',
                 }} />
-                {/* Hover overlay */}
                 <div style={{
                   position: 'absolute', inset: 0,
                   background: 'rgba(0,0,0,0.4)',
@@ -132,7 +132,7 @@ export function IntentionsPanel({
                   onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
                 >
                   <span style={{ fontSize: 11, color: '#fff', fontWeight: 600, letterSpacing: '0.05em' }}>
-                    Change Photo
+                    {t('intentions.changePhoto')}
                   </span>
                 </div>
               </>
@@ -148,7 +148,7 @@ export function IntentionsPanel({
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
                   </svg>
                 </div>
-                Click or drop photo
+                {t('intentions.upload')}
               </div>
             )}
           </div>
@@ -158,7 +158,7 @@ export function IntentionsPanel({
 
         {/* Mood */}
         <div>
-          <p className="section-label">How do you want to feel?</p>
+          <p className="section-label">{t('intentions.mood')}</p>
           <div style={{ display: 'flex', gap: 6 }}>
             {MOODS.map(m => {
               const active = preferences.mood === m.value;
@@ -178,14 +178,13 @@ export function IntentionsPanel({
                   }}>{m.icon}</div>
                   <div style={{
                     background: active ? 'rgba(122,182,72,0.08)' : 'rgba(0,0,0,0.45)',
-                    padding: '5px 0', textAlign: 'center',
-                    transition: 'background 0.2s',
+                    padding: '5px 0', textAlign: 'center', transition: 'background 0.2s',
                   }}>
                     <span style={{
                       fontSize: 10, fontWeight: 600,
                       color: active ? 'var(--green-400)' : 'var(--text-tertiary)',
                       letterSpacing: '0.04em',
-                    }}>{m.label}</span>
+                    }}>{t(m.labelKey)}</span>
                   </div>
                 </button>
               );
@@ -195,34 +194,33 @@ export function IntentionsPanel({
 
         {/* Time of use */}
         <div>
-          <p className="section-label">When will you use this space?</p>
+          <p className="section-label">{t('intentions.time')}</p>
           <div style={{ display: 'flex', gap: 6 }}>
-            {TIMES.map(t => {
-              const active = preferences.timeOfUse === t.value;
+            {TIMES.map(ti => {
+              const active = preferences.timeOfUse === ti.value;
               return (
-                <button key={t.value} onClick={() => onTimeChange(t.value)} style={{
+                <button key={ti.value} onClick={() => onTimeChange(ti.value)} style={{
                   flex: 1,
                   border: active ? '1.5px solid var(--green-400)' : '1px solid var(--garden-border)',
-                  borderRadius: 'var(--radius-md)', background: t.gradient,
+                  borderRadius: 'var(--radius-md)', background: ti.gradient,
                   cursor: 'pointer', padding: 0, overflow: 'hidden',
                   transition: 'all var(--duration-normal) var(--ease-out)',
-                  boxShadow: active ? `0 0 16px ${t.glowColor}` : 'none',
+                  boxShadow: active ? `0 0 16px ${ti.glowColor}` : 'none',
                   fontFamily: 'var(--font-sans)',
                 }}>
                   <div style={{
                     height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 18,
-                  }}>{t.icon}</div>
+                  }}>{ti.icon}</div>
                   <div style={{
                     background: active ? 'rgba(122,182,72,0.08)' : 'rgba(0,0,0,0.45)',
-                    padding: '5px 0', textAlign: 'center',
-                    transition: 'background 0.2s',
+                    padding: '5px 0', textAlign: 'center', transition: 'background 0.2s',
                   }}>
                     <span style={{
                       fontSize: 10, fontWeight: 600,
                       color: active ? 'var(--green-400)' : 'var(--text-tertiary)',
                       letterSpacing: '0.04em',
-                    }}>{t.label}</span>
+                    }}>{t(ti.labelKey)}</span>
                   </div>
                 </button>
               );
@@ -232,7 +230,7 @@ export function IntentionsPanel({
 
         {/* Visibility */}
         <div>
-          <p className="section-label">Visibility</p>
+          <p className="section-label">{t('intentions.visibility')}</p>
           <div style={{ display: 'flex', gap: 8 }}>
             {(['visible', 'hidden'] as const).map(v => {
               const active = preferences.visibility === v;
@@ -249,7 +247,7 @@ export function IntentionsPanel({
                   boxShadow: active ? 'var(--shadow-glow)' : 'none',
                   letterSpacing: '0.02em',
                 }}>
-                  {v === 'visible' ? '👁 ' : '🔒 '}{v.charAt(0).toUpperCase() + v.slice(1)}
+                  {v === 'visible' ? '👁 ' : '🔒 '}{t(v === 'visible' ? 'intentions.visible' : 'intentions.hidden')}
                 </button>
               );
             })}
@@ -262,14 +260,11 @@ export function IntentionsPanel({
           disabled={!hasImage || generating}
           className="btn-primary"
           style={{
-            padding: '13px 0',
-            width: '100%',
+            padding: '13px 0', width: '100%',
             fontSize: 13, fontWeight: 700, letterSpacing: '0.06em',
             ...((!hasImage || generating) ? {
-              background: 'var(--garden-card)',
-              color: 'var(--text-muted)',
-              boxShadow: 'none',
-              cursor: 'not-allowed',
+              background: 'var(--garden-card)', color: 'var(--text-muted)',
+              boxShadow: 'none', cursor: 'not-allowed',
             } : {}),
           }}
         >
@@ -278,21 +273,22 @@ export function IntentionsPanel({
               <span className="dot" style={{ width: 5, height: 5 }} />
               <span className="dot" style={{ width: 5, height: 5 }} />
               <span className="dot" style={{ width: 5, height: 5 }} />
-              <span style={{ marginLeft: 4 }}>Creating...</span>
+              <span style={{ marginLeft: 4 }}>{t('intentions.creating')}</span>
             </span>
-          ) : 'Start Creating'}
+          ) : t('intentions.startCreating')}
         </button>
       </div>
 
-      {/* ── Chat / Direct Instructions — pinned at bottom ── */}
+      {/* ── Chat — pinned at bottom ── */}
       <div style={{
         borderTop: '1px solid var(--garden-border)',
         padding: '14px 16px',
         background: 'linear-gradient(180deg, var(--garden-deep) 0%, var(--garden-black) 100%)',
         flexShrink: 0,
+        position: 'relative', zIndex: 1,
       }}>
         <p className="section-label" style={{ marginBottom: 8 }}>
-          Direct Instructions
+          {t('intentions.instructions')}
         </p>
 
         {confirmed && (
@@ -304,22 +300,16 @@ export function IntentionsPanel({
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green-400)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
-            <span style={{
-              color: 'var(--text-tertiary)', overflow: 'hidden',
-              textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>
+            <span style={{ color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {lastSent}
             </span>
           </div>
         )}
 
         {applying && (
-          <div style={{
-            fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8,
-            display: 'flex', alignItems: 'center', gap: 8,
-          }}>
+          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
             <span className="dot" /><span className="dot" /><span className="dot" />
-            <span style={{ marginLeft: 2 }}>Applying...</span>
+            <span style={{ marginLeft: 2 }}>{t('intentions.applying')}</span>
           </div>
         )}
 
@@ -330,7 +320,7 @@ export function IntentionsPanel({
             onChange={e => setDraft(e.target.value)}
             onKeyDown={handleKey}
             disabled={!hasImage || applying || generating}
-            placeholder={hasImage ? 'e.g. add a bench near the fence...' : 'Upload a photo first'}
+            placeholder={hasImage ? t('intentions.placeholder') : t('intentions.uploadFirst')}
             rows={2}
             style={{
               flex: 1, background: 'var(--garden-card)',
@@ -348,11 +338,8 @@ export function IntentionsPanel({
             onClick={submit}
             disabled={!canSend}
             style={{
-              alignSelf: 'flex-end',
-              width: 36, height: 36,
-              background: canSend
-                ? 'linear-gradient(135deg, var(--green-400), var(--green-500))'
-                : 'var(--garden-card)',
+              alignSelf: 'flex-end', width: 36, height: 36,
+              background: canSend ? 'linear-gradient(135deg, var(--green-400), var(--green-500))' : 'var(--garden-card)',
               border: 'none', borderRadius: 'var(--radius-md)',
               color: canSend ? '#fff' : 'var(--text-muted)',
               cursor: canSend ? 'pointer' : 'not-allowed',
@@ -369,11 +356,8 @@ export function IntentionsPanel({
             </svg>
           </button>
         </div>
-        <p style={{
-          fontSize: 10, color: 'var(--text-ghost)', marginTop: 6,
-          letterSpacing: '0.02em',
-        }}>
-          Enter to send · Shift+Enter for new line
+        <p style={{ fontSize: 10, color: 'var(--text-ghost)', marginTop: 6, letterSpacing: '0.02em' }}>
+          {t('intentions.sendHint')}
         </p>
       </div>
     </div>

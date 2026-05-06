@@ -5,6 +5,7 @@ import { InsightsPanel } from './components/InsightsPanel';
 import { ArrangeView } from './components/ArrangeView';
 import { HistoryPanel } from './components/HistoryPanel';
 import { generateDesign, refreshInsights, applyInstruction, segmentImage } from './lib/api';
+import { useI18n, getLoadingMessages, getApplyMessages, type Lang } from './lib/i18n';
 import type { GardenPreferences, DesignResult, SegmentedObject, HistoryItem } from './lib/types';
 
 const DEFAULT_PREFS: GardenPreferences = {
@@ -14,21 +15,6 @@ const DEFAULT_PREFS: GardenPreferences = {
   sliders: { tranquilVibrant: 0.2, openSheltered: 0.5, lightMass: 0.4, socialSolitary: 0.5 },
 };
 
-const LOADING_MESSAGES = [
-  'Analyzing your garden space...',
-  'Understanding your intentions...',
-  'Designing your sanctuary...',
-  'Shaping light and shadow...',
-  'Adding the finishing touches...',
-];
-
-const APPLY_MESSAGES = [
-  'Applying your instruction...',
-  'Blending with your garden...',
-  'Finalising the edit...',
-];
-
-// Keywords that signal the user wants to work from the original uploaded photo
 const ORIGINAL_REFS = /\b(original|origineel|uploaded|begin|base photo|originele foto|terug naar|back to original|start photo|start foto|mijn foto|my photo|van het begin|from the start|eerste foto|first photo)\b/i;
 
 function refersToOriginal(text: string): boolean {
@@ -39,7 +25,11 @@ function makeId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+const LANG_LABELS: Record<Lang, string> = { nl: 'NL', en: 'EN', fr: 'FR' };
+const LANG_ORDER: Lang[] = ['nl', 'en', 'fr'];
+
 export default function App() {
+  const { t, lang, setLang } = useI18n();
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [preferences, setPreferences] = useState<GardenPreferences>(DEFAULT_PREFS);
@@ -49,7 +39,7 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [result, setResult] = useState<DesignResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [generatingMessage, setGeneratingMessage] = useState(LOADING_MESSAGES[0]);
+  const [generatingMessage, setGeneratingMessage] = useState('');
   const [flowMode, setFlowMode] = useState(false);
   const [phase, setPhase] = useState<'design' | 'arrange'>('design');
   const [segmenting, setSegmenting] = useState(false);
@@ -93,7 +83,7 @@ export default function App() {
     if (!imageDataUrl) return;
     setGenerating(true);
     setError(null);
-    startMessageCycle(LOADING_MESSAGES);
+    startMessageCycle(getLoadingMessages(lang));
     try {
       const imageToUse = result?.imageUrl ?? imageDataUrl;
       const design = await generateDesign(imageToUse, preferences);
@@ -105,14 +95,14 @@ export default function App() {
       setGenerating(false);
       stopMessageCycle();
     }
-  }, [imageDataUrl, result, preferences]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [imageDataUrl, result, preferences, lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleInstruction = useCallback(async (text: string) => {
     if (!imageDataUrl) return;
     const base = refersToOriginal(text) ? imageDataUrl : (result?.imageUrl ?? imageDataUrl);
     setApplying(true);
     setError(null);
-    startMessageCycle(APPLY_MESSAGES);
+    startMessageCycle(getApplyMessages(lang));
     try {
       const newUrl = await applyInstruction(base, text);
       if (newUrl) {
@@ -134,7 +124,7 @@ export default function App() {
       setApplying(false);
       stopMessageCycle();
     }
-  }, [result, imageDataUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [result, imageDataUrl, lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePlaceObject = useCallback(async () => {
     if (!result?.suggestedObject?.name) return;
@@ -232,7 +222,6 @@ export default function App() {
           width: '100%', height: '100%', objectFit: 'cover', opacity: 0.9,
           transition: 'opacity 1s ease',
         }} />
-        {/* Vignette overlay */}
         <div style={{
           position: 'absolute', inset: 0,
           background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.6) 100%)',
@@ -245,7 +234,7 @@ export default function App() {
           <p style={{
             fontSize: 12, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.2em',
             textTransform: 'uppercase', fontFamily: 'var(--font-sans)',
-          }}>Click to exit flow mode</p>
+          }}>{t('flow.exit')}</p>
         </div>
         <div style={{ position: 'absolute', top: 30, left: 0, right: 0, textAlign: 'center' }}>
           <p style={{
@@ -270,12 +259,9 @@ export default function App() {
         display: 'flex', alignItems: 'center', gap: 12,
         background: 'linear-gradient(180deg, rgba(15,26,18,0.95) 0%, rgba(6,10,7,0.98) 100%)',
         backdropFilter: 'blur(12px)',
-        position: 'relative',
-        zIndex: 10,
+        position: 'relative', zIndex: 10,
       }}>
-        {/* Brand mark */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* Logo glow dot */}
           <div style={{
             width: 8, height: 8, borderRadius: '50%',
             background: 'var(--green-400)',
@@ -289,10 +275,9 @@ export default function App() {
           <span style={{
             color: 'var(--text-tertiary)', fontSize: 12, fontWeight: 400,
             letterSpacing: '0.04em',
-          }}>Garden Experience AI</span>
+          }}>{t('brand.subtitle')}</span>
         </div>
 
-        {/* Subtle separator line */}
         <div style={{
           position: 'absolute', bottom: 0, left: 0, right: 0, height: 1,
           background: 'linear-gradient(90deg, transparent 0%, rgba(122,182,72,0.1) 30%, rgba(122,182,72,0.1) 70%, transparent 100%)',
@@ -304,12 +289,39 @@ export default function App() {
               fontSize: 11, color: 'var(--coral)',
               background: 'rgba(204,107,85,0.08)',
               padding: '4px 12px', borderRadius: 'var(--radius-sm)',
-              border: '1px solid rgba(204,107,85,0.15)',
-              fontWeight: 500,
+              border: '1px solid rgba(204,107,85,0.15)', fontWeight: 500,
             }}>
               {error}
             </span>
           )}
+
+          {/* Language Switcher */}
+          <div style={{
+            display: 'flex', borderRadius: 'var(--radius-md)', overflow: 'hidden',
+            border: '1px solid var(--garden-border)',
+          }}>
+            {LANG_ORDER.map(l => (
+              <button
+                key={l}
+                onClick={() => setLang(l)}
+                style={{
+                  padding: '5px 10px',
+                  background: lang === l ? 'var(--green-subtle)' : 'transparent',
+                  border: 'none',
+                  borderRight: l !== 'fr' ? '1px solid var(--garden-border)' : 'none',
+                  color: lang === l ? 'var(--green-400)' : 'var(--text-muted)',
+                  fontSize: 11, fontWeight: lang === l ? 700 : 500,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                  letterSpacing: '0.04em',
+                  transition: 'all var(--duration-fast) var(--ease-out)',
+                }}
+              >
+                {LANG_LABELS[l]}
+              </button>
+            ))}
+          </div>
+
           <button
             onClick={() => setShowHistory(true)}
             style={{
@@ -326,7 +338,7 @@ export default function App() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
-            <span>History</span>
+            <span>{t('header.history')}</span>
             {history.length > 0 && (
               <span style={{
                 background: 'linear-gradient(135deg, var(--green-400), var(--green-500))',

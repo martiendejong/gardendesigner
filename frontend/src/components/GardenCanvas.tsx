@@ -1,4 +1,5 @@
 import type { GardenPreferences, DesignResult } from '../lib/types';
+import { useI18n } from '../lib/i18n';
 
 interface Props {
   imagePreview: string | null;
@@ -10,18 +11,20 @@ interface Props {
   onStyleSelect: (style: 'contemplative' | 'social' | 'evening') => void;
 }
 
-const SLIDERS: { key: keyof GardenPreferences['sliders']; left: string; right: string; leftIcon: string; rightIcon: string }[] = [
-  { key: 'tranquilVibrant', left: 'Tranquil',  right: 'Vibrant',   leftIcon: '🍃', rightIcon: '🌺' },
-  { key: 'openSheltered',   left: 'Open',      right: 'Sheltered', leftIcon: '☀️',  rightIcon: '🌳' },
-  { key: 'lightMass',       left: 'Light',     right: 'Mass',      leftIcon: '✨', rightIcon: '🪨' },
-  { key: 'socialSolitary',  left: 'Social',    right: 'Solitary',  leftIcon: '👥', rightIcon: '🧘' },
+type SliderKey = keyof GardenPreferences['sliders'];
+
+const SLIDER_KEYS: { key: SliderKey; leftKey: string; rightKey: string; leftIcon: string; rightIcon: string }[] = [
+  { key: 'tranquilVibrant', leftKey: 'slider.tranquil', rightKey: 'slider.vibrant',   leftIcon: '🍃', rightIcon: '🌺' },
+  { key: 'openSheltered',   leftKey: 'slider.open',     rightKey: 'slider.sheltered', leftIcon: '☀️',  rightIcon: '🌳' },
+  { key: 'lightMass',       leftKey: 'slider.light',    rightKey: 'slider.mass',      leftIcon: '✨', rightIcon: '🪨' },
+  { key: 'socialSolitary',  leftKey: 'slider.social',   rightKey: 'slider.solitary',  leftIcon: '👥', rightIcon: '🧘' },
 ];
 
 const STYLES = [
   {
     id: 'contemplative' as const,
-    name: 'Contemplative Retreat',
-    subtitle: 'Peaceful solitude',
+    nameKey: 'style.contemplative',
+    subKey: 'style.contemplative.sub',
     gradient: 'linear-gradient(160deg, #1a3d2a 0%, #0c2015 60%, #081a0e 100%)',
     glowColor: 'rgba(40,140,70,0.25)',
     accentColor: '#4a9a5a',
@@ -29,8 +32,8 @@ const STYLES = [
   },
   {
     id: 'social' as const,
-    name: 'Social Gathering',
-    subtitle: 'Warm togetherness',
+    nameKey: 'style.social',
+    subKey: 'style.social.sub',
     gradient: 'linear-gradient(160deg, #3d2e1a 0%, #2a1f0c 60%, #1a160a 100%)',
     glowColor: 'rgba(200,160,78,0.25)',
     accentColor: '#c8a04e',
@@ -38,8 +41,8 @@ const STYLES = [
   },
   {
     id: 'evening' as const,
-    name: 'Evening Serenity',
-    subtitle: 'Twilight calm',
+    nameKey: 'style.evening',
+    subKey: 'style.evening.sub',
     gradient: 'linear-gradient(160deg, #1a1a35 0%, #12122a 60%, #0a0a1a 100%)',
     glowColor: 'rgba(100,80,180,0.25)',
     accentColor: '#8b7ec8',
@@ -51,6 +54,7 @@ export function GardenCanvas({
   imagePreview, result, generating, generatingMessage,
   preferences, onSliderChange, onStyleSelect,
 }: Props) {
+  const { t } = useI18n();
   const displayImage = result?.imageUrl || imagePreview;
 
   return (
@@ -73,7 +77,7 @@ export function GardenCanvas({
             fontFamily: 'var(--font-display)', fontStyle: 'italic',
             letterSpacing: '0.01em',
           }}>
-            {generating ? 'Generating Your Space...' : result?.generationMessage}
+            {generating ? t('canvas.generating') : result?.generationMessage}
           </span>
         </div>
       )}
@@ -94,7 +98,6 @@ export function GardenCanvas({
                 opacity: generating ? 0.3 : 1,
               }}
             />
-            {/* Subtle vignette on image */}
             {!generating && (
               <div style={{
                 position: 'absolute', inset: 0,
@@ -109,7 +112,6 @@ export function GardenCanvas({
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16,
             background: 'radial-gradient(ellipse at center, rgba(122,182,72,0.02) 0%, transparent 60%)',
           }}>
-            {/* Elegant empty state */}
             <div style={{
               width: 80, height: 80, borderRadius: '50%',
               background: 'var(--garden-card)',
@@ -123,18 +125,16 @@ export function GardenCanvas({
               </svg>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <p style={{
-                fontSize: 15, color: 'var(--text-tertiary)', fontWeight: 500,
-                marginBottom: 4,
-              }}>Upload your garden photo</p>
-              <p style={{
-                fontSize: 12, color: 'var(--text-muted)',
-              }}>to begin designing your sanctuary</p>
+              <p style={{ fontSize: 15, color: 'var(--text-tertiary)', fontWeight: 500, marginBottom: 4 }}>
+                {t('canvas.uploadTitle')}
+              </p>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {t('canvas.uploadSubtitle')}
+              </p>
             </div>
           </div>
         )}
 
-        {/* Generating overlay */}
         {generating && (
           <div style={{
             position: 'absolute', inset: 0,
@@ -148,40 +148,36 @@ export function GardenCanvas({
               textShadow: '0 2px 40px rgba(0,0,0,0.9)',
               letterSpacing: '0.02em',
               fontFamily: 'var(--font-display)', fontStyle: 'italic',
-              maxWidth: 400,
-              animation: 'fadeIn 0.5s ease',
+              maxWidth: 400, animation: 'fadeIn 0.5s ease',
             }}>
               {generatingMessage}
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
-              <span className="dot" />
-              <span className="dot" />
-              <span className="dot" />
+              <span className="dot" /><span className="dot" /><span className="dot" />
             </div>
           </div>
         )}
       </div>
 
       {/* ── Sliders ── */}
-      <div style={{
+      <div className="marble" style={{
         padding: '12px 20px 10px',
         borderTop: '1px solid var(--garden-border)',
         background: 'linear-gradient(180deg, var(--garden-surface) 0%, var(--garden-deep) 100%)',
         display: 'flex', flexDirection: 'column', gap: 8,
         flexShrink: 0,
+        position: 'relative',
       }}>
-        {SLIDERS.map(s => {
+        {SLIDER_KEYS.map(s => {
           const val = preferences.sliders[s.key];
           const pct = Math.round(val * 100);
           return (
-            <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{
-                fontSize: 12, width: 20, textAlign: 'center', flexShrink: 0,
-              }}>{s.leftIcon}</span>
+            <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative', zIndex: 1 }}>
+              <span style={{ fontSize: 12, width: 20, textAlign: 'center', flexShrink: 0 }}>{s.leftIcon}</span>
               <span style={{
                 fontSize: 11, color: 'var(--text-tertiary)', width: 58,
                 textAlign: 'right', flexShrink: 0, fontWeight: 500,
-              }}>{s.left}</span>
+              }}>{t(s.leftKey as any)}</span>
               <input
                 type="range" min={0} max={100} value={pct}
                 className="garden-slider"
@@ -191,22 +187,21 @@ export function GardenCanvas({
               <span style={{
                 fontSize: 11, color: 'var(--text-tertiary)', width: 58,
                 flexShrink: 0, fontWeight: 500,
-              }}>{s.right}</span>
-              <span style={{
-                fontSize: 12, width: 20, textAlign: 'center', flexShrink: 0,
-              }}>{s.rightIcon}</span>
+              }}>{t(s.rightKey as any)}</span>
+              <span style={{ fontSize: 12, width: 20, textAlign: 'center', flexShrink: 0 }}>{s.rightIcon}</span>
             </div>
           );
         })}
       </div>
 
       {/* ── Style Cards ── */}
-      <div style={{
+      <div className="marble" style={{
         padding: '10px 20px 14px',
         borderTop: '1px solid var(--garden-border)',
         background: 'var(--garden-deep)',
         display: 'flex', gap: 10,
         flexShrink: 0,
+        position: 'relative',
       }}>
         {STYLES.map(card => (
           <div
@@ -216,7 +211,7 @@ export function GardenCanvas({
               flex: 1, borderRadius: 'var(--radius-lg)', overflow: 'hidden',
               border: '1px solid var(--garden-border)', cursor: 'pointer',
               transition: 'all var(--duration-normal) var(--ease-out)',
-              position: 'relative',
+              position: 'relative', zIndex: 1,
             }}
             onMouseEnter={e => {
               e.currentTarget.style.borderColor = card.accentColor;
@@ -233,24 +228,19 @@ export function GardenCanvas({
               height: 52, background: card.gradient, position: 'relative',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              {/* Glow effect */}
               <div style={{
                 position: 'absolute', inset: 0,
                 background: `radial-gradient(ellipse at 50% 100%, ${card.glowColor} 0%, transparent 70%)`,
               }} />
               <span style={{ fontSize: 22, position: 'relative', zIndex: 1 }}>{card.icon}</span>
             </div>
-            <div style={{
-              padding: '8px 10px 10px',
-              background: 'var(--garden-card)',
-            }}>
-              <p style={{
-                fontSize: 11, color: 'var(--text-primary)', marginBottom: 2,
-                fontWeight: 600, lineHeight: 1.2,
-              }}>{card.name}</p>
-              <p style={{
-                fontSize: 10, color: 'var(--text-muted)', marginBottom: 6,
-              }}>{card.subtitle}</p>
+            <div style={{ padding: '8px 10px 10px', background: 'var(--garden-card)' }}>
+              <p style={{ fontSize: 11, color: 'var(--text-primary)', marginBottom: 2, fontWeight: 600, lineHeight: 1.2 }}>
+                {t(card.nameKey as any)}
+              </p>
+              <p style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 6 }}>
+                {t(card.subKey as any)}
+              </p>
               <div style={{
                 padding: '3px 0', textAlign: 'center',
                 background: 'var(--green-subtle)',
@@ -259,7 +249,7 @@ export function GardenCanvas({
                 color: 'var(--green-400)', fontSize: 10, fontWeight: 600,
                 letterSpacing: '0.04em',
               }}>
-                Explore
+                {t('canvas.explore')}
               </div>
             </div>
           </div>
