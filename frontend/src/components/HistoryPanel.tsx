@@ -15,7 +15,13 @@ const TYPE_LABEL: Record<HistoryItem['type'], string> = {
 const TYPE_COLOR: Record<HistoryItem['type'], string> = {
   upload: '#5588cc',
   generated: '#7ab648',
-  instruction: '#cc8855',
+  instruction: '#c8a04e',
+};
+
+const TYPE_BG: Record<HistoryItem['type'], string> = {
+  upload: 'rgba(85,136,204,0.15)',
+  generated: 'rgba(122,182,72,0.15)',
+  instruction: 'rgba(200,160,78,0.15)',
 };
 
 function formatTime(ts: number): string {
@@ -28,44 +34,79 @@ export function HistoryPanel({ history, onRestore, onClose }: Props) {
     <div style={{
       position: 'fixed', inset: 0, zIndex: 1000,
       display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end',
+      animation: 'fadeIn 0.2s ease',
     }}>
       {/* Backdrop */}
       <div
         onClick={onClose}
-        style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }}
+        style={{
+          position: 'absolute', inset: 0,
+          background: 'rgba(6,10,7,0.75)',
+          backdropFilter: 'blur(4px)',
+        }}
       />
 
       {/* Panel */}
       <div style={{
         position: 'relative', zIndex: 1,
-        width: 360, height: '100%',
-        background: '#151515', borderLeft: '1px solid #222',
+        width: 380, height: '100%',
+        background: 'linear-gradient(180deg, var(--garden-surface) 0%, var(--garden-deep) 100%)',
+        borderLeft: '1px solid var(--garden-border)',
         display: 'flex', flexDirection: 'column',
-        boxShadow: '-8px 0 32px rgba(0,0,0,0.5)',
+        boxShadow: '-12px 0 48px rgba(0,0,0,0.5)',
+        animation: 'slideInRight 0.3s cubic-bezier(0.16,1,0.3,1)',
       }}>
         {/* Header */}
         <div style={{
-          padding: '14px 18px', borderBottom: '1px solid #222',
+          padding: '16px 20px',
+          borderBottom: '1px solid var(--garden-border)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: '#e0e0e0', letterSpacing: '0.05em' }}>HISTORY</div>
-            <div style={{ fontSize: 11, color: '#555', marginTop: 2 }}>{history.length} item{history.length !== 1 ? 's' : ''}</div>
+            <div style={{
+              fontWeight: 700, fontSize: 13, color: 'var(--text-primary)',
+              letterSpacing: '0.08em',
+            }}>HISTORY</div>
+            <div style={{
+              fontSize: 11, color: 'var(--text-tertiary)', marginTop: 3,
+            }}>{history.length} item{history.length !== 1 ? 's' : ''}</div>
           </div>
           <button
             onClick={onClose}
             style={{
-              background: 'none', border: 'none', color: '#666',
-              fontSize: 18, cursor: 'pointer', padding: '4px 8px',
-              lineHeight: 1,
+              background: 'var(--garden-card)', border: '1px solid var(--garden-border)',
+              color: 'var(--text-tertiary)', width: 32, height: 32,
+              borderRadius: 'var(--radius-sm)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', fontSize: 14,
+              transition: 'all var(--duration-fast) var(--ease-out)',
             }}
-          >✕</button>
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = 'var(--garden-border-hover)';
+              e.currentTarget.style.color = 'var(--text-primary)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = 'var(--garden-border)';
+              e.currentTarget.style.color = 'var(--text-tertiary)';
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
         </div>
 
         {/* Items */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{
+          flex: 1, overflowY: 'auto', padding: 14,
+          display: 'flex', flexDirection: 'column', gap: 12,
+        }}>
           {history.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#444', fontSize: 12, marginTop: 40 }}>
+            <div style={{
+              textAlign: 'center', color: 'var(--text-muted)',
+              fontSize: 12, marginTop: 50,
+              fontFamily: 'var(--font-display)', fontStyle: 'italic',
+            }}>
               No history yet
             </div>
           ) : (
@@ -73,58 +114,79 @@ export function HistoryPanel({ history, onRestore, onClose }: Props) {
               <div
                 key={item.id}
                 style={{
-                  background: '#1a1a1a', border: '1px solid #242424',
-                  borderRadius: 8, overflow: 'hidden',
-                  display: 'flex', gap: 0, flexDirection: 'column',
+                  background: 'var(--garden-card)',
+                  border: '1px solid var(--garden-border)',
+                  borderRadius: 'var(--radius-lg)', overflow: 'hidden',
+                  display: 'flex', flexDirection: 'column',
+                  transition: 'all var(--duration-normal) var(--ease-out)',
+                  animation: `fadeIn 0.3s ease ${i * 0.05}s both`,
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = 'var(--garden-border-hover)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'var(--garden-border)';
+                  e.currentTarget.style.boxShadow = 'none';
                 }}
               >
                 {/* Thumbnail */}
-                <div style={{ position: 'relative', height: 140, background: '#111' }}>
+                <div style={{ position: 'relative', height: 150, background: 'var(--garden-black)' }}>
                   <img
                     src={item.imageUrl}
                     alt={item.label}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    style={{
+                      width: '100%', height: '100%', objectFit: 'cover', display: 'block',
+                    }}
                   />
+                  {/* Gradient overlay at bottom */}
                   <div style={{
-                    position: 'absolute', top: 8, left: 8,
-                    background: TYPE_COLOR[item.type],
-                    color: '#000', fontSize: 9, fontWeight: 700,
-                    padding: '2px 7px', borderRadius: 3,
+                    position: 'absolute', bottom: 0, left: 0, right: 0, height: 40,
+                    background: 'linear-gradient(transparent, rgba(19,31,22,0.8))',
+                  }} />
+                  {/* Type badge */}
+                  <div style={{
+                    position: 'absolute', top: 10, left: 10,
+                    background: TYPE_BG[item.type],
+                    backdropFilter: 'blur(8px)',
+                    color: TYPE_COLOR[item.type], fontSize: 9, fontWeight: 700,
+                    padding: '3px 9px', borderRadius: 'var(--radius-sm)',
                     letterSpacing: '0.08em', textTransform: 'uppercase',
+                    border: `1px solid ${TYPE_COLOR[item.type]}22`,
                   }}>
                     {TYPE_LABEL[item.type]}
                   </div>
                   {i === 0 && (
                     <div style={{
-                      position: 'absolute', top: 8, right: 8,
-                      background: 'rgba(0,0,0,0.6)', color: '#7ab648',
-                      fontSize: 9, fontWeight: 700, padding: '2px 7px',
-                      borderRadius: 3, letterSpacing: '0.06em',
+                      position: 'absolute', top: 10, right: 10,
+                      background: 'rgba(122,182,72,0.15)',
+                      backdropFilter: 'blur(8px)',
+                      color: 'var(--green-400)',
+                      fontSize: 9, fontWeight: 700, padding: '3px 9px',
+                      borderRadius: 'var(--radius-sm)', letterSpacing: '0.08em',
+                      border: '1px solid rgba(122,182,72,0.15)',
                     }}>LATEST</div>
                   )}
                 </div>
 
                 {/* Info row */}
                 <div style={{
-                  padding: '8px 12px', display: 'flex',
-                  alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                  padding: '10px 14px', display: 'flex',
+                  alignItems: 'center', justifyContent: 'space-between', gap: 10,
                 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
-                      fontSize: 12, color: '#ccc', fontWeight: 500,
+                      fontSize: 12, color: 'var(--text-primary)', fontWeight: 500,
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}>{item.label}</div>
-                    <div style={{ fontSize: 10, color: '#444', marginTop: 2 }}>{formatTime(item.timestamp)}</div>
+                    <div style={{
+                      fontSize: 10, color: 'var(--text-muted)', marginTop: 3,
+                    }}>{formatTime(item.timestamp)}</div>
                   </div>
                   <button
                     onClick={() => onRestore(item)}
-                    style={{
-                      background: 'rgba(122,182,72,0.1)',
-                      border: '1px solid #3a6a28',
-                      borderRadius: 5, padding: '4px 12px',
-                      color: '#7ab648', fontSize: 11, fontWeight: 600,
-                      cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-                    }}
+                    className="btn-ghost"
+                    style={{ padding: '5px 14px', fontSize: 11 }}
                   >Restore</button>
                 </div>
               </div>

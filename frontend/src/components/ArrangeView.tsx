@@ -35,7 +35,6 @@ export function ArrangeView({ imageUrl, objects, segmenting: initialSegmenting, 
   const containerRef = useRef<HTMLDivElement>(null);
   const dragStartPos = useRef<{ x: number; y: number } | null>(null);
 
-  // Sync positions when objects change (e.g. initial load)
   useEffect(() => {
     setCurrentObjects(objects);
     const init: Record<string, { x: number; y: number }> = {};
@@ -91,7 +90,7 @@ export function ArrangeView({ imageUrl, objects, segmenting: initialSegmenting, 
 
     const dx = Math.abs(finalPos.x - startPos.x);
     const dy = Math.abs(finalPos.y - startPos.y);
-    if (dx < 3 && dy < 3) return; // no-op: barely moved
+    if (dx < 3 && dy < 3) return;
 
     const obj = currentObjects.find(o => o.id === id);
     if (!obj) return;
@@ -105,7 +104,6 @@ export function ArrangeView({ imageUrl, objects, segmenting: initialSegmenting, 
       if (newUrl) {
         setCurrentImage(newUrl);
         onInstructionApplied(newUrl);
-        // Re-segment to update object positions
         setRescanning(true);
         try {
           const newObjects = await segmentImage(newUrl);
@@ -171,64 +169,66 @@ export function ArrangeView({ imageUrl, objects, segmenting: initialSegmenting, 
   return (
     <div style={{
       height: '100%',
-      background: '#111',
+      background: 'var(--garden-black)',
       display: 'flex',
       flexDirection: 'column',
-      color: '#e0e0e0',
+      color: 'var(--text-primary)',
     }}>
       {/* Header */}
       <div style={{
-        padding: '10px 20px',
-        borderBottom: '1px solid #1a1a1a',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
+        padding: '0 24px', height: 52,
+        borderBottom: '1px solid var(--garden-border)',
+        display: 'flex', alignItems: 'center', gap: 14,
         flexShrink: 0,
+        background: 'linear-gradient(180deg, var(--garden-surface) 0%, var(--garden-deep) 100%)',
       }}>
         <button
           onClick={onBack}
+          className="btn-ghost"
           style={{
-            background: 'transparent',
-            border: '1px solid #2a2a2a',
-            borderRadius: 6,
-            color: '#888',
-            fontSize: 12,
-            padding: '6px 12px',
-            cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '6px 14px', fontSize: 12,
           }}
         >
-          ← Back to Design
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+          Back to Design
         </button>
-        <span style={{ flex: 1, textAlign: 'center', fontSize: 14, fontWeight: 600, color: '#c0c0c0' }}>
+        <span style={{
+          flex: 1, textAlign: 'center', fontSize: 14, fontWeight: 600,
+          color: 'var(--text-secondary)', letterSpacing: '0.04em',
+        }}>
           Arrange Objects
         </span>
         <button
           disabled
           style={{
-            background: '#1a1a1a',
-            border: '1px solid #2a2a2a',
-            borderRadius: 6,
-            color: '#444',
-            fontSize: 12,
-            padding: '6px 12px',
+            background: 'var(--garden-card)',
+            border: '1px solid var(--garden-border)',
+            borderRadius: 'var(--radius-md)',
+            color: 'var(--text-muted)',
+            fontSize: 12, padding: '6px 14px',
             cursor: 'not-allowed',
+            fontFamily: 'var(--font-sans)',
+            display: 'flex', alignItems: 'center', gap: 6,
           }}
         >
-          Generate Views →
+          Generate Views
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
         </button>
       </div>
 
       {/* Main content */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         {/* Canvas area */}
-        <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#0a0a0a' }}>
-          {/* Image + overlays container */}
+        <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: 'var(--garden-black)' }}>
           <div
             ref={containerRef}
             style={{
-              position: 'relative',
-              width: '100%',
-              height: '100%',
+              position: 'relative', width: '100%', height: '100%',
               userSelect: 'none',
               cursor: draggingId ? 'grabbing' : 'default',
             }}
@@ -241,12 +241,9 @@ export function ArrangeView({ imageUrl, objects, segmenting: initialSegmenting, 
               src={currentImage}
               alt="Garden arrange"
               style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain',
-                display: 'block',
-                opacity: isWorking ? 0.5 : 1,
-                transition: 'opacity 0.3s',
+                width: '100%', height: '100%', objectFit: 'contain', display: 'block',
+                opacity: isWorking ? 0.4 : 1,
+                transition: 'opacity 0.4s var(--ease-out)',
                 pointerEvents: 'none',
               }}
             />
@@ -262,38 +259,38 @@ export function ArrangeView({ imageUrl, objects, segmenting: initialSegmenting, 
                   onMouseDown={e => handleMouseDown(e, obj.id)}
                   style={{
                     position: 'absolute',
-                    left: `${pos.x}%`,
-                    top: `${pos.y}%`,
-                    transform: 'translate(-50%, -50%)',
+                    left: `${pos.x}%`, top: `${pos.y}%`,
+                    transform: `translate(-50%, -50%) ${isDragging ? 'scale(1.08)' : 'scale(1)'}`,
                     cursor: 'grab',
                     zIndex: isDragging ? 100 : 10,
-                    transition: isDragging ? 'none' : 'left 0.1s, top 0.1s',
+                    transition: isDragging ? 'none' : 'left 0.1s, top 0.1s, transform 0.15s var(--ease-spring)',
                   }}
                 >
                   <div style={{
                     background: isDragging
                       ? 'rgba(122, 182, 72, 0.9)'
                       : isHighlighted
-                        ? 'rgba(122, 182, 72, 0.8)'
-                        : 'rgba(20, 20, 20, 0.82)',
+                        ? 'rgba(122, 182, 72, 0.15)'
+                        : 'rgba(15, 26, 18, 0.85)',
                     border: isDragging || isHighlighted
-                      ? '2px solid #7ab648'
-                      : '1px solid rgba(255,255,255,0.2)',
-                    borderRadius: 20,
-                    padding: '4px 8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
+                      ? '1.5px solid var(--green-400)'
+                      : '1px solid rgba(122,182,72,0.15)',
+                    borderRadius: 'var(--radius-xl)',
+                    padding: '5px 10px',
+                    display: 'flex', alignItems: 'center', gap: 5,
                     whiteSpace: 'nowrap',
-                    backdropFilter: 'blur(4px)',
-                    boxShadow: isHighlighted ? '0 0 12px rgba(122,182,72,0.6)' : '0 2px 8px rgba(0,0,0,0.5)',
-                    transition: 'all 0.15s',
+                    backdropFilter: 'blur(8px)',
+                    boxShadow: isDragging
+                      ? '0 4px 20px rgba(122,182,72,0.4)'
+                      : isHighlighted
+                        ? 'var(--shadow-glow)'
+                        : 'var(--shadow-md)',
+                    transition: 'all 0.15s var(--ease-out)',
                   }}>
-                    <span style={{ fontSize: 13 }}>{obj.emoji}</span>
+                    <span style={{ fontSize: 14, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' }}>{obj.emoji}</span>
                     <span style={{
-                      fontSize: 10,
-                      fontWeight: 600,
-                      color: isDragging || isHighlighted ? '#fff' : '#d0d0d0',
+                      fontSize: 11, fontWeight: 600,
+                      color: isDragging ? '#fff' : isHighlighted ? 'var(--green-300)' : 'var(--text-primary)',
                     }}>
                       {obj.label}
                     </span>
@@ -305,44 +302,42 @@ export function ArrangeView({ imageUrl, objects, segmenting: initialSegmenting, 
             {/* Applying overlay */}
             {applying && (
               <div style={{
-                position: 'absolute',
-                inset: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 12,
-                background: 'rgba(0,0,0,0.4)',
+                position: 'absolute', inset: 0,
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', gap: 14,
+                background: 'rgba(6,10,7,0.5)',
+                backdropFilter: 'blur(2px)',
+                animation: 'fadeIn 0.3s ease',
               }}>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <span className="dot" />
-                  <span className="dot" />
-                  <span className="dot" />
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <span className="dot" /><span className="dot" /><span className="dot" />
                 </div>
-                <p style={{ fontSize: 14, color: '#e0e0e0', fontWeight: 300 }}>
+                <p style={{
+                  fontSize: 15, color: 'var(--text-primary)', fontWeight: 300,
+                  fontFamily: 'var(--font-display)', fontStyle: 'italic',
+                }}>
                   Moving {applyingLabel}...
                 </p>
               </div>
             )}
 
-            {/* Segmenting overlay */}
+            {/* Rescanning overlay */}
             {rescanning && !applying && (
               <div style={{
-                position: 'absolute',
-                inset: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 12,
-                background: 'rgba(0,0,0,0.4)',
+                position: 'absolute', inset: 0,
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', gap: 14,
+                background: 'rgba(6,10,7,0.5)',
+                backdropFilter: 'blur(2px)',
+                animation: 'fadeIn 0.3s ease',
               }}>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <span className="dot" />
-                  <span className="dot" />
-                  <span className="dot" />
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <span className="dot" /><span className="dot" /><span className="dot" />
                 </div>
-                <p style={{ fontSize: 14, color: '#e0e0e0', fontWeight: 300 }}>
+                <p style={{
+                  fontSize: 15, color: 'var(--text-primary)', fontWeight: 300,
+                  fontFamily: 'var(--font-display)', fontStyle: 'italic',
+                }}>
                   Re-scanning objects...
                 </p>
               </div>
@@ -352,93 +347,125 @@ export function ArrangeView({ imageUrl, objects, segmenting: initialSegmenting, 
 
         {/* Sidebar */}
         <div style={{
-          width: 220,
-          flexShrink: 0,
-          borderLeft: '1px solid #1e1e1e',
-          display: 'flex',
-          flexDirection: 'column',
-          background: '#111',
+          width: 230, flexShrink: 0,
+          borderLeft: '1px solid var(--garden-border)',
+          display: 'flex', flexDirection: 'column',
+          background: 'linear-gradient(180deg, var(--garden-surface) 0%, var(--garden-deep) 100%)',
           overflow: 'hidden',
         }}>
           <div style={{
-            padding: '10px 14px',
-            borderBottom: '1px solid #1a1a1a',
-            fontSize: 11,
-            fontWeight: 700,
-            color: '#7ab648',
-            letterSpacing: '0.06em',
+            padding: '12px 16px',
+            borderBottom: '1px solid var(--garden-border)',
+            display: 'flex', alignItems: 'center', gap: 8,
           }}>
-            OBJECTS ({currentObjects.length})
+            <div style={{
+              width: 6, height: 6, borderRadius: '50%',
+              background: 'var(--green-400)',
+              boxShadow: '0 0 6px var(--green-glow)',
+            }} />
+            <span style={{
+              fontSize: 11, fontWeight: 700, color: 'var(--green-400)',
+              letterSpacing: '0.08em',
+            }}>
+              OBJECTS ({currentObjects.length})
+            </span>
           </div>
 
-          <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {currentObjects.map(obj => (
+          <div style={{
+            flex: 1, overflowY: 'auto', padding: '10px 12px',
+            display: 'flex', flexDirection: 'column', gap: 5,
+          }}>
+            {currentObjects.map((obj, i) => (
               <div
                 key={obj.id}
                 onMouseEnter={() => setHighlightedId(obj.id)}
                 onMouseLeave={() => setHighlightedId(null)}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '6px 8px',
-                  borderRadius: 6,
-                  background: highlightedId === obj.id ? 'rgba(122,182,72,0.08)' : '#161616',
-                  border: `1px solid ${highlightedId === obj.id ? '#3a6a28' : '#222'}`,
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '8px 10px',
+                  borderRadius: 'var(--radius-md)',
+                  background: highlightedId === obj.id ? 'var(--green-subtle)' : 'var(--garden-card)',
+                  border: `1px solid ${highlightedId === obj.id ? 'rgba(122,182,72,0.15)' : 'var(--garden-border)'}`,
                   cursor: 'pointer',
-                  transition: 'all 0.15s',
+                  transition: 'all var(--duration-fast) var(--ease-out)',
+                  animation: `fadeIn 0.2s ease ${i * 0.05}s both`,
                 }}
               >
-                <span style={{ fontSize: 16, flexShrink: 0 }}>{obj.emoji}</span>
-                <span style={{ flex: 1, fontSize: 11, color: '#c0c0c0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{
+                  fontSize: 17, flexShrink: 0,
+                  filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))',
+                }}>{obj.emoji}</span>
+                <span style={{
+                  flex: 1, fontSize: 11, color: 'var(--text-secondary)', fontWeight: 500,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
                   {obj.label}
                 </span>
                 <button
                   onClick={() => handleRemoveObject(obj)}
                   disabled={isWorking}
                   style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#555',
-                    fontSize: 14,
-                    cursor: isWorking ? 'not-allowed' : 'pointer',
-                    padding: '0 2px',
-                    lineHeight: 1,
-                    flexShrink: 0,
+                    background: 'transparent', border: 'none',
+                    color: 'var(--text-muted)',
+                    fontSize: 15, cursor: isWorking ? 'not-allowed' : 'pointer',
+                    padding: '0 3px', lineHeight: 1, flexShrink: 0,
+                    transition: 'color 0.15s',
+                    fontFamily: 'var(--font-sans)',
                   }}
+                  onMouseEnter={e => { if (!isWorking) e.currentTarget.style.color = 'var(--coral)'; }}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
                   title={`Remove ${obj.label}`}
                 >
-                  ×
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
                 </button>
               </div>
             ))}
 
             {currentObjects.length === 0 && (
-              <p style={{ fontSize: 11, color: '#444', textAlign: 'center', paddingTop: 20 }}>
+              <p style={{
+                fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', paddingTop: 24,
+                fontFamily: 'var(--font-display)', fontStyle: 'italic',
+              }}>
                 No objects identified
               </p>
             )}
           </div>
 
-          <div style={{ padding: '10px 12px', borderTop: '1px solid #1a1a1a', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <p style={{ fontSize: 10, color: '#555' }}>
-              Drag objects on the canvas to move them.
+          <div style={{
+            padding: '12px 14px', borderTop: '1px solid var(--garden-border)',
+            flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8,
+          }}>
+            <p style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              Drag objects on the canvas to reposition them.
             </p>
             <button
               onClick={handleRescan}
               disabled={isWorking}
+              className="btn-ghost"
               style={{
-                padding: '7px 0',
-                background: isWorking ? '#161616' : 'rgba(122,182,72,0.08)',
-                border: `1px solid ${isWorking ? '#222' : '#3a6a28'}`,
-                borderRadius: 6,
-                color: isWorking ? '#444' : '#7ab648',
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: isWorking ? 'not-allowed' : 'pointer',
+                width: '100%', padding: '8px 0',
+                fontSize: 11, fontWeight: 600,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}
             >
-              {rescanning ? 'Scanning...' : 'Re-scan Objects'}
+              {rescanning ? (
+                <>
+                  <span className="dot" style={{ width: 4, height: 4 }} />
+                  <span className="dot" style={{ width: 4, height: 4 }} />
+                  <span className="dot" style={{ width: 4, height: 4 }} />
+                  <span style={{ marginLeft: 4 }}>Scanning...</span>
+                </>
+              ) : (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                  </svg>
+                  Re-scan Objects
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -446,33 +473,37 @@ export function ArrangeView({ imageUrl, objects, segmenting: initialSegmenting, 
 
       {/* Bottom status bar */}
       <div style={{
-        padding: '8px 20px',
-        borderTop: '1px solid #1a1a1a',
-        background: '#0e0e0e',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
+        padding: '8px 24px', height: 36,
+        borderTop: '1px solid var(--garden-border)',
+        background: 'var(--garden-black)',
+        display: 'flex', alignItems: 'center', gap: 10,
         flexShrink: 0,
-        fontSize: 11,
-        color: '#555',
+        fontSize: 11, color: 'var(--text-muted)',
       }}>
         {applying ? (
           <>
-            <span className="dot" style={{ width: 5, height: 5 }} />
-            <span style={{ color: '#888' }}>Moving {applyingLabel}...</span>
+            <span className="dot" style={{ width: 4, height: 4 }} />
+            <span style={{ color: 'var(--text-secondary)' }}>Moving {applyingLabel}...</span>
           </>
         ) : rescanning ? (
           <>
-            <span className="dot" style={{ width: 5, height: 5 }} />
-            <span style={{ color: '#888' }}>Re-scanning objects...</span>
+            <span className="dot" style={{ width: 4, height: 4 }} />
+            <span style={{ color: 'var(--text-secondary)' }}>Re-scanning objects...</span>
           </>
         ) : initialSegmenting ? (
           <>
-            <span className="dot" style={{ width: 5, height: 5 }} />
-            <span style={{ color: '#888' }}>Identifying objects...</span>
+            <span className="dot" style={{ width: 4, height: 4 }} />
+            <span style={{ color: 'var(--text-secondary)' }}>Identifying objects...</span>
           </>
         ) : (
-          <span>{currentObjects.length} objects identified</span>
+          <>
+            <div style={{
+              width: 5, height: 5, borderRadius: '50%',
+              background: 'var(--green-400)',
+              boxShadow: '0 0 4px var(--green-glow)',
+            }} />
+            <span>{currentObjects.length} objects identified</span>
+          </>
         )}
       </div>
     </div>

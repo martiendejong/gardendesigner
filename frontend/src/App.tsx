@@ -81,7 +81,6 @@ export default function App() {
     const reader = new FileReader();
     reader.onload = e => {
       const url = e.target?.result as string;
-      // Save current image to history before replacing
       if (imageDataUrl) addToHistory(imageDataUrl, 'upload', 'Uploaded photo');
       setImagePreview(url);
       setImageDataUrl(url);
@@ -110,7 +109,6 @@ export default function App() {
 
   const handleInstruction = useCallback(async (text: string) => {
     if (!imageDataUrl) return;
-    // If the instruction refers to the original, use the uploaded photo as base
     const base = refersToOriginal(text) ? imageDataUrl : (result?.imageUrl ?? imageDataUrl);
     setApplying(true);
     setError(null);
@@ -225,57 +223,123 @@ export default function App() {
 
   if (flowMode && result) {
     return (
-      <div style={{ height: '100%', position: 'relative', background: '#000', cursor: 'pointer' }}
+      <div style={{
+        height: '100%', position: 'relative', background: '#000', cursor: 'pointer',
+        overflow: 'hidden',
+      }}
         onClick={() => setFlowMode(false)}>
-        <img src={result.imageUrl} alt="Flow mode" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }} />
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 40 }}>
-          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em' }}>CLICK TO EXIT FLOW MODE</p>
+        <img src={result.imageUrl} alt="Flow mode" style={{
+          width: '100%', height: '100%', objectFit: 'cover', opacity: 0.9,
+          transition: 'opacity 1s ease',
+        }} />
+        {/* Vignette overlay */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.6) 100%)',
+          pointerEvents: 'none',
+        }} />
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 50,
+        }}>
+          <p style={{
+            fontSize: 12, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.2em',
+            textTransform: 'uppercase', fontFamily: 'var(--font-sans)',
+          }}>Click to exit flow mode</p>
         </div>
-        <div style={{ position: 'absolute', top: 20, left: 0, right: 0, textAlign: 'center' }}>
-          <p style={{ fontSize: 22, fontWeight: 300, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.05em' }}>{result.generationMessage}</p>
+        <div style={{ position: 'absolute', top: 30, left: 0, right: 0, textAlign: 'center' }}>
+          <p style={{
+            fontSize: 24, fontWeight: 300, color: 'rgba(255,255,255,0.75)',
+            letterSpacing: '0.03em', fontFamily: 'var(--font-display)', fontStyle: 'italic',
+            textShadow: '0 2px 40px rgba(0,0,0,0.8)',
+          }}>{result.generationMessage}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#111', color: '#e0e0e0' }}>
+    <div style={{
+      display: 'flex', flexDirection: 'column', height: '100%',
+      background: 'var(--garden-black)', color: 'var(--text-primary)',
+    }}>
+      {/* ── Premium Header ── */}
       <header style={{
-        padding: '10px 20px', borderBottom: '1px solid #1a1a1a',
-        display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
+        padding: '0 24px', height: 52, flexShrink: 0,
+        borderBottom: '1px solid var(--garden-border)',
+        display: 'flex', alignItems: 'center', gap: 12,
+        background: 'linear-gradient(180deg, rgba(15,26,18,0.95) 0%, rgba(6,10,7,0.98) 100%)',
+        backdropFilter: 'blur(12px)',
+        position: 'relative',
+        zIndex: 10,
       }}>
-        <span style={{ fontWeight: 800, color: '#7ab648', fontSize: 15, letterSpacing: '0.12em' }}>JENGO</span>
-        <span style={{ color: '#4a4a4a', fontSize: 13 }}>Garden Experience AI</span>
+        {/* Brand mark */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* Logo glow dot */}
+          <div style={{
+            width: 8, height: 8, borderRadius: '50%',
+            background: 'var(--green-400)',
+            boxShadow: '0 0 8px var(--green-glow), 0 0 20px rgba(122,182,72,0.15)',
+            animation: 'breathe 3s ease-in-out infinite',
+          }} />
+          <span style={{
+            fontWeight: 800, color: 'var(--green-400)', fontSize: 14,
+            letterSpacing: '0.16em', fontFamily: 'var(--font-sans)',
+          }}>JENGO</span>
+          <span style={{
+            color: 'var(--text-tertiary)', fontSize: 12, fontWeight: 400,
+            letterSpacing: '0.04em',
+          }}>Garden Experience AI</span>
+        </div>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Subtle separator line */}
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0, height: 1,
+          background: 'linear-gradient(90deg, transparent 0%, rgba(122,182,72,0.1) 30%, rgba(122,182,72,0.1) 70%, transparent 100%)',
+        }} />
+
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
           {error && (
-            <span style={{ fontSize: 11, color: '#e05050', background: 'rgba(200,50,50,0.1)', padding: '3px 10px', borderRadius: 4 }}>
+            <span style={{
+              fontSize: 11, color: 'var(--coral)',
+              background: 'rgba(204,107,85,0.08)',
+              padding: '4px 12px', borderRadius: 'var(--radius-sm)',
+              border: '1px solid rgba(204,107,85,0.15)',
+              fontWeight: 500,
+            }}>
               {error}
             </span>
           )}
           <button
             onClick={() => setShowHistory(true)}
             style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              background: history.length > 0 ? 'rgba(122,182,72,0.08)' : '#161616',
-              border: `1px solid ${history.length > 0 ? '#3a6a28' : '#2a2a2a'}`,
-              borderRadius: 6, padding: '5px 12px',
-              color: history.length > 0 ? '#7ab648' : '#444',
-              fontSize: 12, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 7,
+              background: history.length > 0 ? 'var(--green-subtle)' : 'transparent',
+              border: `1px solid ${history.length > 0 ? 'rgba(122,182,72,0.15)' : 'var(--garden-border)'}`,
+              borderRadius: 'var(--radius-md)', padding: '6px 14px',
+              color: history.length > 0 ? 'var(--green-400)' : 'var(--text-muted)',
+              fontSize: 12, cursor: 'pointer', fontWeight: 500,
+              fontFamily: 'var(--font-sans)',
+              transition: 'all var(--duration-normal) var(--ease-out)',
             }}
           >
-            <span>⏱</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
             <span>History</span>
             {history.length > 0 && (
               <span style={{
-                background: '#7ab648', color: '#000', fontSize: 10, fontWeight: 700,
-                borderRadius: 10, padding: '1px 6px', minWidth: 18, textAlign: 'center',
+                background: 'linear-gradient(135deg, var(--green-400), var(--green-500))',
+                color: '#fff', fontSize: 10, fontWeight: 700,
+                borderRadius: 10, padding: '1px 7px', minWidth: 18, textAlign: 'center',
+                boxShadow: '0 0 8px rgba(122,182,72,0.3)',
               }}>{history.length}</span>
             )}
           </button>
         </div>
       </header>
 
+      {/* ── Main Layout ── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         <IntentionsPanel
           preferences={preferences}

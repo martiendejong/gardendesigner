@@ -10,31 +10,40 @@ interface Props {
   onStyleSelect: (style: 'contemplative' | 'social' | 'evening') => void;
 }
 
-const SLIDERS: { key: keyof GardenPreferences['sliders']; left: string; right: string }[] = [
-  { key: 'tranquilVibrant', left: 'Tranquil', right: 'Vibrant' },
-  { key: 'openSheltered', left: 'Open', right: 'Sheltered' },
-  { key: 'lightMass', left: 'Light', right: 'Mass' },
-  { key: 'socialSolitary', left: 'Social', right: 'Solitary' },
+const SLIDERS: { key: keyof GardenPreferences['sliders']; left: string; right: string; leftIcon: string; rightIcon: string }[] = [
+  { key: 'tranquilVibrant', left: 'Tranquil',  right: 'Vibrant',   leftIcon: '🍃', rightIcon: '🌺' },
+  { key: 'openSheltered',   left: 'Open',      right: 'Sheltered', leftIcon: '☀️',  rightIcon: '🌳' },
+  { key: 'lightMass',       left: 'Light',     right: 'Mass',      leftIcon: '✨', rightIcon: '🪨' },
+  { key: 'socialSolitary',  left: 'Social',    right: 'Solitary',  leftIcon: '👥', rightIcon: '🧘' },
 ];
 
 const STYLES = [
   {
     id: 'contemplative' as const,
     name: 'Contemplative Retreat',
-    bg: 'linear-gradient(160deg, #1a3a2e 0%, #0c1e16 100%)',
-    glow: 'rgba(40,120,70,0.35)',
+    subtitle: 'Peaceful solitude',
+    gradient: 'linear-gradient(160deg, #1a3d2a 0%, #0c2015 60%, #081a0e 100%)',
+    glowColor: 'rgba(40,140,70,0.25)',
+    accentColor: '#4a9a5a',
+    icon: '🧘',
   },
   {
     id: 'social' as const,
     name: 'Social Gathering',
-    bg: 'linear-gradient(160deg, #2e2a1a 0%, #1a160c 100%)',
-    glow: 'rgba(140,110,30,0.35)',
+    subtitle: 'Warm togetherness',
+    gradient: 'linear-gradient(160deg, #3d2e1a 0%, #2a1f0c 60%, #1a160a 100%)',
+    glowColor: 'rgba(200,160,78,0.25)',
+    accentColor: '#c8a04e',
+    icon: '🌻',
   },
   {
     id: 'evening' as const,
     name: 'Evening Serenity',
-    bg: 'linear-gradient(160deg, #1a1a2e 0%, #0c0c1a 100%)',
-    glow: 'rgba(60,50,130,0.35)',
+    subtitle: 'Twilight calm',
+    gradient: 'linear-gradient(160deg, #1a1a35 0%, #12122a 60%, #0a0a1a 100%)',
+    glowColor: 'rgba(100,80,180,0.25)',
+    accentColor: '#8b7ec8',
+    icon: '🌙',
   },
 ];
 
@@ -45,36 +54,83 @@ export function GardenCanvas({
   const displayImage = result?.imageUrl || imagePreview;
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+    <div style={{
+      flex: 1, display: 'flex', flexDirection: 'column',
+      overflow: 'hidden', minWidth: 0,
+      background: 'var(--garden-black)',
+    }}>
 
       {/* Canvas header */}
       {(generating || result) && (
-        <div style={{ padding: '8px 16px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
-          <span style={{ fontSize: 12, color: '#555', fontStyle: 'italic' }}>
+        <div style={{
+          padding: '10px 20px',
+          borderBottom: '1px solid var(--garden-border)',
+          flexShrink: 0,
+          background: 'linear-gradient(90deg, var(--garden-deep) 0%, var(--garden-surface) 50%, var(--garden-deep) 100%)',
+        }}>
+          <span style={{
+            fontSize: 13, color: 'var(--text-secondary)',
+            fontFamily: 'var(--font-display)', fontStyle: 'italic',
+            letterSpacing: '0.01em',
+          }}>
             {generating ? 'Generating Your Space...' : result?.generationMessage}
           </span>
         </div>
       )}
 
       {/* Main image area */}
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#0a0a0a' }}>
+      <div style={{
+        flex: 1, position: 'relative', overflow: 'hidden',
+        background: 'var(--garden-black)',
+      }}>
         {displayImage ? (
-          <img
-            src={displayImage}
-            alt="Garden"
-            className="garden-image"
-            style={{
-              width: '100%', height: '100%', objectFit: 'cover', display: 'block',
-              opacity: generating ? 0.35 : 1,
-            }}
-          />
+          <>
+            <img
+              src={displayImage}
+              alt="Garden"
+              className="garden-image"
+              style={{
+                width: '100%', height: '100%', objectFit: 'cover', display: 'block',
+                opacity: generating ? 0.3 : 1,
+              }}
+            />
+            {/* Subtle vignette on image */}
+            {!generating && (
+              <div style={{
+                position: 'absolute', inset: 0,
+                background: 'radial-gradient(ellipse at center, transparent 60%, rgba(6,10,7,0.4) 100%)',
+                pointerEvents: 'none',
+              }} />
+            )}
+          </>
         ) : (
           <div style={{
             width: '100%', height: '100%',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16,
+            background: 'radial-gradient(ellipse at center, rgba(122,182,72,0.02) 0%, transparent 60%)',
           }}>
-            <div style={{ fontSize: 52, opacity: 0.15 }}>🌿</div>
-            <p style={{ fontSize: 13, color: '#3a3a3a' }}>Upload your garden photo to begin</p>
+            {/* Elegant empty state */}
+            <div style={{
+              width: 80, height: 80, borderRadius: '50%',
+              background: 'var(--garden-card)',
+              border: '1px solid var(--garden-border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: 'var(--shadow-glow)',
+            }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--green-400)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <path d="M9 12l2 2 4-4"/>
+              </svg>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <p style={{
+                fontSize: 15, color: 'var(--text-tertiary)', fontWeight: 500,
+                marginBottom: 4,
+              }}>Upload your garden photo</p>
+              <p style={{
+                fontSize: 12, color: 'var(--text-muted)',
+              }}>to begin designing your sanctuary</p>
+            </div>
           </div>
         )}
 
@@ -82,12 +138,22 @@ export function GardenCanvas({
         {generating && (
           <div style={{
             position: 'absolute', inset: 0,
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20,
+            background: 'radial-gradient(ellipse at center, rgba(6,10,7,0.7) 0%, rgba(6,10,7,0.85) 100%)',
+            animation: 'overlayPulse 3s ease-in-out infinite',
           }}>
-            <p style={{ fontSize: 24, fontWeight: 300, color: '#e0e0e0', textAlign: 'center', textShadow: '0 2px 30px rgba(0,0,0,0.9)', letterSpacing: '0.01em' }}>
+            <p style={{
+              fontSize: 26, fontWeight: 300, color: 'var(--text-primary)',
+              textAlign: 'center',
+              textShadow: '0 2px 40px rgba(0,0,0,0.9)',
+              letterSpacing: '0.02em',
+              fontFamily: 'var(--font-display)', fontStyle: 'italic',
+              maxWidth: 400,
+              animation: 'fadeIn 0.5s ease',
+            }}>
               {generatingMessage}
             </p>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 10 }}>
               <span className="dot" />
               <span className="dot" />
               <span className="dot" />
@@ -96,12 +162,12 @@ export function GardenCanvas({
         )}
       </div>
 
-      {/* Sliders */}
+      {/* ── Sliders ── */}
       <div style={{
-        padding: '10px 16px 8px',
-        borderTop: '1px solid #181818',
-        background: '#111',
-        display: 'flex', flexDirection: 'column', gap: 7,
+        padding: '12px 20px 10px',
+        borderTop: '1px solid var(--garden-border)',
+        background: 'linear-gradient(180deg, var(--garden-surface) 0%, var(--garden-deep) 100%)',
+        display: 'flex', flexDirection: 'column', gap: 8,
         flexShrink: 0,
       }}>
         {SLIDERS.map(s => {
@@ -109,24 +175,36 @@ export function GardenCanvas({
           const pct = Math.round(val * 100);
           return (
             <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 11, color: '#666', width: 64, textAlign: 'right', flexShrink: 0 }}>{s.left}</span>
+              <span style={{
+                fontSize: 12, width: 20, textAlign: 'center', flexShrink: 0,
+              }}>{s.leftIcon}</span>
+              <span style={{
+                fontSize: 11, color: 'var(--text-tertiary)', width: 58,
+                textAlign: 'right', flexShrink: 0, fontWeight: 500,
+              }}>{s.left}</span>
               <input
                 type="range" min={0} max={100} value={pct}
                 className="garden-slider"
                 style={{ '--val': `${pct}%` } as React.CSSProperties}
                 onChange={e => onSliderChange(s.key, parseInt(e.target.value) / 100)}
               />
-              <span style={{ fontSize: 11, color: '#666', width: 64, flexShrink: 0 }}>{s.right}</span>
+              <span style={{
+                fontSize: 11, color: 'var(--text-tertiary)', width: 58,
+                flexShrink: 0, fontWeight: 500,
+              }}>{s.right}</span>
+              <span style={{
+                fontSize: 12, width: 20, textAlign: 'center', flexShrink: 0,
+              }}>{s.rightIcon}</span>
             </div>
           );
         })}
       </div>
 
-      {/* Style cards */}
+      {/* ── Style Cards ── */}
       <div style={{
-        padding: '8px 16px 12px',
-        borderTop: '1px solid #181818',
-        background: '#111',
+        padding: '10px 20px 14px',
+        borderTop: '1px solid var(--garden-border)',
+        background: 'var(--garden-deep)',
         display: 'flex', gap: 10,
         flexShrink: 0,
       }}>
@@ -135,33 +213,58 @@ export function GardenCanvas({
             key={card.id}
             onClick={() => onStyleSelect(card.id)}
             style={{
-              flex: 1, borderRadius: 8, overflow: 'hidden',
-              border: '1px solid #222', cursor: 'pointer',
-              transition: 'border-color 0.2s',
+              flex: 1, borderRadius: 'var(--radius-lg)', overflow: 'hidden',
+              border: '1px solid var(--garden-border)', cursor: 'pointer',
+              transition: 'all var(--duration-normal) var(--ease-out)',
+              position: 'relative',
             }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = '#7ab648')}
-            onMouseLeave={e => (e.currentTarget.style.borderColor = '#222')}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = card.accentColor;
+              e.currentTarget.style.boxShadow = `0 4px 20px ${card.glowColor}`;
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = 'var(--garden-border)';
+              e.currentTarget.style.boxShadow = 'none';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
           >
-            <div style={{ height: 58, background: card.bg, position: 'relative' }}>
+            <div style={{
+              height: 52, background: card.gradient, position: 'relative',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {/* Glow effect */}
               <div style={{
                 position: 'absolute', inset: 0,
-                background: `radial-gradient(ellipse at 50% 100%, ${card.glow} 0%, transparent 65%)`,
+                background: `radial-gradient(ellipse at 50% 100%, ${card.glowColor} 0%, transparent 70%)`,
               }} />
+              <span style={{ fontSize: 22, position: 'relative', zIndex: 1 }}>{card.icon}</span>
             </div>
-            <div style={{ padding: '6px 8px 8px', background: '#161616' }}>
-              <p style={{ fontSize: 11, color: '#c8c8c8', marginBottom: 5, fontWeight: 500, lineHeight: 1.2 }}>{card.name}</p>
-              <button style={{
-                background: 'transparent', border: '1px solid #2a2a2a',
-                borderRadius: 4, color: '#666', fontSize: 10,
-                padding: '2px 8px', cursor: 'pointer',
+            <div style={{
+              padding: '8px 10px 10px',
+              background: 'var(--garden-card)',
+            }}>
+              <p style={{
+                fontSize: 11, color: 'var(--text-primary)', marginBottom: 2,
+                fontWeight: 600, lineHeight: 1.2,
+              }}>{card.name}</p>
+              <p style={{
+                fontSize: 10, color: 'var(--text-muted)', marginBottom: 6,
+              }}>{card.subtitle}</p>
+              <div style={{
+                padding: '3px 0', textAlign: 'center',
+                background: 'var(--green-subtle)',
+                border: '1px solid var(--garden-border)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--green-400)', fontSize: 10, fontWeight: 600,
+                letterSpacing: '0.04em',
               }}>
                 Explore
-              </button>
+              </div>
             </div>
           </div>
         ))}
       </div>
-
     </div>
   );
 }

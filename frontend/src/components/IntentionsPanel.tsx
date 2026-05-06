@@ -15,16 +15,16 @@ interface Props {
   onInstruction: (text: string) => void;
 }
 
-const MOODS: { value: GardenPreferences['mood']; label: string; bg: string }[] = [
-  { value: 'tranquil', label: 'Tranquil', bg: 'linear-gradient(160deg, #1e3d2f 0%, #0e2218 100%)' },
-  { value: 'social',   label: 'Social',   bg: 'linear-gradient(160deg, #3d2e1e 0%, #221808 100%)' },
-  { value: 'intimate', label: 'Intimate', bg: 'linear-gradient(160deg, #2a1e3d 0%, #160d22 100%)' },
+const MOODS: { value: GardenPreferences['mood']; label: string; icon: string; gradient: string; glowColor: string }[] = [
+  { value: 'tranquil', label: 'Tranquil',  icon: '🌿', gradient: 'linear-gradient(160deg, #1a3d2a 0%, #0c2015 100%)', glowColor: 'rgba(40,140,70,0.2)' },
+  { value: 'social',   label: 'Social',    icon: '🌻', gradient: 'linear-gradient(160deg, #3d2e1a 0%, #201508 100%)', glowColor: 'rgba(200,160,78,0.2)' },
+  { value: 'intimate', label: 'Intimate',  icon: '🌙', gradient: 'linear-gradient(160deg, #2a1a3d 0%, #140a20 100%)', glowColor: 'rgba(139,126,200,0.2)' },
 ];
 
-const TIMES: { value: GardenPreferences['timeOfUse']; label: string; bg: string }[] = [
-  { value: 'morning', label: 'Morning', bg: 'linear-gradient(160deg, #3d3c1e 0%, #222108 100%)' },
-  { value: 'daytime', label: 'Daytime', bg: 'linear-gradient(160deg, #1e2e3d 0%, #0e1822 100%)' },
-  { value: 'evening', label: 'Evening', bg: 'linear-gradient(160deg, #1e1e2d 0%, #0d0d18 100%)' },
+const TIMES: { value: GardenPreferences['timeOfUse']; label: string; icon: string; gradient: string; glowColor: string }[] = [
+  { value: 'morning', label: 'Morning', icon: '🌅', gradient: 'linear-gradient(160deg, #3d3a1a 0%, #201e08 100%)', glowColor: 'rgba(210,180,60,0.15)' },
+  { value: 'daytime', label: 'Daytime', icon: '☀️',  gradient: 'linear-gradient(160deg, #1a2e3d 0%, #0a1520 100%)', glowColor: 'rgba(60,140,210,0.15)' },
+  { value: 'evening', label: 'Evening', icon: '🌆', gradient: 'linear-gradient(160deg, #1a1a30 0%, #0a0a18 100%)', glowColor: 'rgba(100,80,180,0.15)' },
 ];
 
 export function IntentionsPanel({
@@ -37,8 +37,8 @@ export function IntentionsPanel({
   const [draft, setDraft] = useState('');
   const [lastSent, setLastSent] = useState('');
   const [confirmed, setConfirmed] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
-  // Show ✓ briefly after instruction applied
   useEffect(() => {
     if (!applying && lastSent) {
       setConfirmed(true);
@@ -49,6 +49,7 @@ export function IntentionsPanel({
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
+    setDragOver(false);
     const f = e.dataTransfer.files[0];
     if (f?.type.startsWith('image/')) onImageUpload(f);
   }
@@ -69,36 +70,84 @@ export function IntentionsPanel({
 
   return (
     <div style={{
-      width: 260, flexShrink: 0,
-      borderRight: '1px solid #1e1e1e',
+      width: 272, flexShrink: 0,
+      borderRight: '1px solid var(--garden-border)',
       display: 'flex', flexDirection: 'column',
-      background: '#111', overflow: 'hidden',
+      background: 'linear-gradient(180deg, var(--garden-surface) 0%, var(--garden-deep) 100%)',
+      overflow: 'hidden',
+      position: 'relative',
     }}>
       {/* Scrollable controls section */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <h2 style={{ fontSize: 11, fontWeight: 700, color: '#7ab648', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-          Set Your Intentions
-        </h2>
+      <div style={{
+        flex: 1, overflowY: 'auto', padding: '18px 16px',
+        display: 'flex', flexDirection: 'column', gap: 18,
+      }}>
+        {/* Section title */}
+        <div>
+          <h2 style={{
+            fontSize: 10, fontWeight: 700, color: 'var(--green-400)',
+            letterSpacing: '0.16em', textTransform: 'uppercase',
+            marginBottom: 2,
+          }}>
+            Set Your Intentions
+          </h2>
+          <p style={{ fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
+            Define how your garden should feel
+          </p>
+        </div>
 
         {/* Upload zone */}
         <div>
-          <p style={{ fontSize: 11, color: '#666', marginBottom: 7 }}>Upload your garden photo</p>
+          <p className="section-label">Garden Photo</p>
           <div
             onClick={() => fileRef.current?.click()}
             onDrop={handleDrop}
-            onDragOver={e => e.preventDefault()}
+            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
             style={{
-              border: `1px dashed ${imagePreview ? '#333' : '#2a2a2a'}`,
-              borderRadius: 8, minHeight: 76, cursor: 'pointer',
-              overflow: 'hidden', background: '#141414',
+              border: `1.5px dashed ${dragOver ? 'var(--green-400)' : imagePreview ? 'var(--garden-border-hover)' : 'var(--garden-border)'}`,
+              borderRadius: 'var(--radius-lg)', minHeight: 88, cursor: 'pointer',
+              overflow: 'hidden',
+              background: dragOver ? 'rgba(122,182,72,0.06)' : 'var(--garden-card)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all var(--duration-normal) var(--ease-out)',
+              position: 'relative',
             }}
           >
             {imagePreview ? (
-              <img src={imagePreview} alt="Your garden" style={{ width: '100%', height: 76, objectFit: 'cover', display: 'block' }} />
+              <>
+                <img src={imagePreview} alt="Your garden" style={{
+                  width: '100%', height: 88, objectFit: 'cover', display: 'block',
+                  borderRadius: 'var(--radius-lg)',
+                }} />
+                {/* Hover overlay */}
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  background: 'rgba(0,0,0,0.4)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  opacity: 0, transition: 'opacity 0.2s',
+                  borderRadius: 'var(--radius-lg)',
+                }}
+                  onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                  onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
+                >
+                  <span style={{ fontSize: 11, color: '#fff', fontWeight: 600, letterSpacing: '0.05em' }}>
+                    Change Photo
+                  </span>
+                </div>
+              </>
             ) : (
-              <div style={{ textAlign: 'center', color: '#444', fontSize: 11 }}>
-                <div style={{ fontSize: 22, marginBottom: 3 }}>+</div>
+              <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 11, padding: 16 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: '50%',
+                  background: 'var(--green-subtle)', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 8px',
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green-400)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                </div>
                 Click or drop photo
               </div>
             )}
@@ -109,56 +158,101 @@ export function IntentionsPanel({
 
         {/* Mood */}
         <div>
-          <p style={{ fontSize: 11, color: '#666', marginBottom: 7 }}>How do you want to feel?</p>
-          <div style={{ display: 'flex', gap: 5 }}>
-            {MOODS.map(m => (
-              <button key={m.value} onClick={() => onMoodChange(m.value)} style={{
-                flex: 1, border: preferences.mood === m.value ? '1px solid #7ab648' : '1px solid #242424',
-                borderRadius: 7, background: m.bg, cursor: 'pointer', padding: 0, overflow: 'hidden',
-              }}>
-                <div style={{ height: 38 }} />
-                <div style={{ background: 'rgba(0,0,0,0.45)', padding: '3px 0', textAlign: 'center' }}>
-                  <span style={{ fontSize: 9, color: preferences.mood === m.value ? '#7ab648' : '#999' }}>{m.label}</span>
-                </div>
-              </button>
-            ))}
+          <p className="section-label">How do you want to feel?</p>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {MOODS.map(m => {
+              const active = preferences.mood === m.value;
+              return (
+                <button key={m.value} onClick={() => onMoodChange(m.value)} style={{
+                  flex: 1,
+                  border: active ? '1.5px solid var(--green-400)' : '1px solid var(--garden-border)',
+                  borderRadius: 'var(--radius-md)', background: m.gradient,
+                  cursor: 'pointer', padding: 0, overflow: 'hidden',
+                  transition: 'all var(--duration-normal) var(--ease-out)',
+                  boxShadow: active ? `0 0 16px ${m.glowColor}` : 'none',
+                  fontFamily: 'var(--font-sans)',
+                }}>
+                  <div style={{
+                    height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 18,
+                  }}>{m.icon}</div>
+                  <div style={{
+                    background: active ? 'rgba(122,182,72,0.08)' : 'rgba(0,0,0,0.45)',
+                    padding: '5px 0', textAlign: 'center',
+                    transition: 'background 0.2s',
+                  }}>
+                    <span style={{
+                      fontSize: 10, fontWeight: 600,
+                      color: active ? 'var(--green-400)' : 'var(--text-tertiary)',
+                      letterSpacing: '0.04em',
+                    }}>{m.label}</span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* Time of use */}
         <div>
-          <p style={{ fontSize: 11, color: '#666', marginBottom: 7 }}>When will you use this space?</p>
-          <div style={{ display: 'flex', gap: 5 }}>
-            {TIMES.map(t => (
-              <button key={t.value} onClick={() => onTimeChange(t.value)} style={{
-                flex: 1, border: preferences.timeOfUse === t.value ? '1px solid #7ab648' : '1px solid #242424',
-                borderRadius: 7, background: t.bg, cursor: 'pointer', padding: 0, overflow: 'hidden',
-              }}>
-                <div style={{ height: 38 }} />
-                <div style={{ background: 'rgba(0,0,0,0.45)', padding: '3px 0', textAlign: 'center' }}>
-                  <span style={{ fontSize: 9, color: preferences.timeOfUse === t.value ? '#7ab648' : '#999' }}>{t.label}</span>
-                </div>
-              </button>
-            ))}
+          <p className="section-label">When will you use this space?</p>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {TIMES.map(t => {
+              const active = preferences.timeOfUse === t.value;
+              return (
+                <button key={t.value} onClick={() => onTimeChange(t.value)} style={{
+                  flex: 1,
+                  border: active ? '1.5px solid var(--green-400)' : '1px solid var(--garden-border)',
+                  borderRadius: 'var(--radius-md)', background: t.gradient,
+                  cursor: 'pointer', padding: 0, overflow: 'hidden',
+                  transition: 'all var(--duration-normal) var(--ease-out)',
+                  boxShadow: active ? `0 0 16px ${t.glowColor}` : 'none',
+                  fontFamily: 'var(--font-sans)',
+                }}>
+                  <div style={{
+                    height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 18,
+                  }}>{t.icon}</div>
+                  <div style={{
+                    background: active ? 'rgba(122,182,72,0.08)' : 'rgba(0,0,0,0.45)',
+                    padding: '5px 0', textAlign: 'center',
+                    transition: 'background 0.2s',
+                  }}>
+                    <span style={{
+                      fontSize: 10, fontWeight: 600,
+                      color: active ? 'var(--green-400)' : 'var(--text-tertiary)',
+                      letterSpacing: '0.04em',
+                    }}>{t.label}</span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* Visibility */}
         <div>
-          <p style={{ fontSize: 11, color: '#666', marginBottom: 7 }}>Visible or Hidden?</p>
-          <div style={{ display: 'flex', gap: 7 }}>
-            {(['visible', 'hidden'] as const).map(v => (
-              <button key={v} onClick={() => onVisibilityChange(v)} style={{
-                flex: 1, padding: '7px 0',
-                border: preferences.visibility === v ? '1px solid #7ab648' : '1px solid #242424',
-                borderRadius: 7,
-                background: preferences.visibility === v ? 'rgba(122,182,72,0.12)' : '#161616',
-                color: preferences.visibility === v ? '#7ab648' : '#666',
-                cursor: 'pointer', fontSize: 12, fontWeight: 500,
-              }}>
-                {v.charAt(0).toUpperCase() + v.slice(1)}
-              </button>
-            ))}
+          <p className="section-label">Visibility</p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {(['visible', 'hidden'] as const).map(v => {
+              const active = preferences.visibility === v;
+              return (
+                <button key={v} onClick={() => onVisibilityChange(v)} style={{
+                  flex: 1, padding: '9px 0',
+                  border: active ? '1.5px solid var(--green-400)' : '1px solid var(--garden-border)',
+                  borderRadius: 'var(--radius-md)',
+                  background: active ? 'var(--green-subtle)' : 'var(--garden-card)',
+                  color: active ? 'var(--green-400)' : 'var(--text-tertiary)',
+                  cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                  fontFamily: 'var(--font-sans)',
+                  transition: 'all var(--duration-normal) var(--ease-out)',
+                  boxShadow: active ? 'var(--shadow-glow)' : 'none',
+                  letterSpacing: '0.02em',
+                }}>
+                  {v === 'visible' ? '👁 ' : '🔒 '}{v.charAt(0).toUpperCase() + v.slice(1)}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -166,48 +260,70 @@ export function IntentionsPanel({
         <button
           onClick={onStartCreating}
           disabled={!hasImage || generating}
+          className="btn-primary"
           style={{
-            padding: '11px 0',
-            background: hasImage && !generating ? '#7ab648' : '#1c1c1c',
-            color: hasImage && !generating ? '#fff' : '#3a3a3a',
-            border: 'none', borderRadius: 8,
-            cursor: hasImage && !generating ? 'pointer' : 'not-allowed',
-            fontSize: 13, fontWeight: 600, letterSpacing: '0.04em',
-            transition: 'background 0.2s, color 0.2s',
+            padding: '13px 0',
+            width: '100%',
+            fontSize: 13, fontWeight: 700, letterSpacing: '0.06em',
+            ...((!hasImage || generating) ? {
+              background: 'var(--garden-card)',
+              color: 'var(--text-muted)',
+              boxShadow: 'none',
+              cursor: 'not-allowed',
+            } : {}),
           }}
         >
-          {generating ? 'Creating...' : 'Start Creating'}
+          {generating ? (
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <span className="dot" style={{ width: 5, height: 5 }} />
+              <span className="dot" style={{ width: 5, height: 5 }} />
+              <span className="dot" style={{ width: 5, height: 5 }} />
+              <span style={{ marginLeft: 4 }}>Creating...</span>
+            </span>
+          ) : 'Start Creating'}
         </button>
       </div>
 
-      {/* Chat / Direct Instructions — pinned at bottom */}
+      {/* ── Chat / Direct Instructions — pinned at bottom ── */}
       <div style={{
-        borderTop: '1px solid #1e1e1e',
-        padding: '12px 14px',
-        background: '#0e0e0e',
+        borderTop: '1px solid var(--garden-border)',
+        padding: '14px 16px',
+        background: 'linear-gradient(180deg, var(--garden-deep) 0%, var(--garden-black) 100%)',
         flexShrink: 0,
       }}>
-        <p style={{ fontSize: 10, color: '#555', marginBottom: 7, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        <p className="section-label" style={{ marginBottom: 8 }}>
           Direct Instructions
         </p>
 
         {confirmed && (
-          <div style={{ fontSize: 11, color: '#7ab648', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span>✓</span>
-            <span style={{ color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{
+            fontSize: 11, color: 'var(--green-400)', marginBottom: 8,
+            display: 'flex', alignItems: 'center', gap: 6,
+            animation: 'fadeIn 0.3s ease',
+          }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green-400)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span style={{
+              color: 'var(--text-tertiary)', overflow: 'hidden',
+              textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
               {lastSent}
             </span>
           </div>
         )}
 
         {applying && (
-          <div style={{ fontSize: 11, color: '#888', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{
+            fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8,
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
             <span className="dot" /><span className="dot" /><span className="dot" />
-            <span style={{ marginLeft: 4 }}>Applying...</span>
+            <span style={{ marginLeft: 2 }}>Applying...</span>
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
           <textarea
             ref={textareaRef}
             value={draft}
@@ -217,31 +333,48 @@ export function IntentionsPanel({
             placeholder={hasImage ? 'e.g. add a bench near the fence...' : 'Upload a photo first'}
             rows={2}
             style={{
-              flex: 1, background: '#161616',
-              border: '1px solid #2a2a2a', borderRadius: 6,
-              color: '#c8c8c8', fontSize: 11, padding: '7px 9px',
-              resize: 'none', outline: 'none', lineHeight: 1.4,
-              fontFamily: 'inherit',
-              opacity: hasImage ? 1 : 0.4,
+              flex: 1, background: 'var(--garden-card)',
+              border: '1px solid var(--garden-border)', borderRadius: 'var(--radius-md)',
+              color: 'var(--text-primary)', fontSize: 12, padding: '9px 11px',
+              resize: 'none', outline: 'none', lineHeight: 1.5,
+              fontFamily: 'var(--font-sans)',
+              opacity: hasImage ? 1 : 0.35,
+              transition: 'border-color var(--duration-normal) var(--ease-out)',
             }}
+            onFocus={e => (e.target.style.borderColor = 'rgba(122,182,72,0.25)')}
+            onBlur={e => (e.target.style.borderColor = 'var(--garden-border)')}
           />
           <button
             onClick={submit}
             disabled={!canSend}
             style={{
               alignSelf: 'flex-end',
-              padding: '7px 10px',
-              background: canSend ? '#7ab648' : '#1a1a1a',
-              border: 'none', borderRadius: 6,
-              color: canSend ? '#fff' : '#333',
+              width: 36, height: 36,
+              background: canSend
+                ? 'linear-gradient(135deg, var(--green-400), var(--green-500))'
+                : 'var(--garden-card)',
+              border: 'none', borderRadius: 'var(--radius-md)',
+              color: canSend ? '#fff' : 'var(--text-muted)',
               cursor: canSend ? 'pointer' : 'not-allowed',
-              fontSize: 14, fontWeight: 700,
-              transition: 'background 0.15s',
+              fontSize: 15, fontWeight: 700,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all var(--duration-normal) var(--ease-out)',
+              boxShadow: canSend ? '0 2px 8px rgba(122,182,72,0.25)' : 'none',
+              flexShrink: 0,
             }}
             title="Send (Enter)"
-          >↑</button>
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+            </svg>
+          </button>
         </div>
-        <p style={{ fontSize: 9, color: '#3a3a3a', marginTop: 5 }}>Enter to send · Shift+Enter for new line</p>
+        <p style={{
+          fontSize: 10, color: 'var(--text-ghost)', marginTop: 6,
+          letterSpacing: '0.02em',
+        }}>
+          Enter to send · Shift+Enter for new line
+        </p>
       </div>
     </div>
   );
