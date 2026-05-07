@@ -180,6 +180,22 @@ export default function App() {
     setShowHistory(false);
   }, []);
 
+  // Adjust — user edits the placement instruction before executing
+  const handleAdjust = useCallback(async (instruction: string) => {
+    const base = result?.imageUrl ?? imageDataUrl;
+    if (!base) return;
+    setPlacing(true);
+    setError(null);
+    try {
+      const newUrl = await applyInstruction(base, instruction);
+      if (newUrl) setResult(prev => prev ? { ...prev, imageUrl: newUrl } : prev);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Adjustment failed');
+    } finally {
+      setPlacing(false);
+    }
+  }, [result, imageDataUrl]);
+
   const handleSliderChange = useCallback((key: keyof GardenPreferences['sliders'], value: number) => {
     const updated = { ...preferences, sliders: { ...preferences.sliders, [key]: value } };
     setPreferences(updated);
@@ -307,10 +323,14 @@ export default function App() {
           placing={placing}
           onFlowMode={() => setFlowMode(true)}
           onPlaceObject={handlePlaceObject}
+<<<<<<< HEAD
+          onAdjust={handleAdjust}
+=======
           suggestedPlacements={result?.suggestedPlacements ?? []}
           onInstruction={handleInstruction}
           onProceedToArrange={handleProceedToArrange}
           segmenting={segmenting}
+>>>>>>> main
         />
       </div>
 
