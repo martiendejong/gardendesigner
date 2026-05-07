@@ -1,6 +1,18 @@
 import OpenAI from 'openai';
 import sharp from 'sharp';
-import type { GardenPreferences, DesignResponse } from '../types/garden';
+import fs from 'fs';
+import path from 'path';
+import type { GardenPreferences, DesignResponse, SegmentedObject } from '../types/garden';
+
+const LOG_FILE = 'C:\\projects\\gardendesigner\\prompt.log';
+function log(label: string, content: string) {
+  try {
+    const line = `[${new Date().toISOString()}] ${label}:\n${content}\n${'─'.repeat(80)}\n`;
+    fs.appendFileSync(LOG_FILE, line, 'utf8');
+  } catch (e) {
+    console.error('log write failed:', e);
+  }
+}
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -51,9 +63,7 @@ async function resizeForAPI(imageBuffer: Buffer): Promise<string> {
  * The model sees the original, understands it fully, and produces a targeted edit.
  */
 async function editWithGPT4o(imageDataUrl: string, instruction: string): Promise<string | null> {
-  console.log('\n─── Responses API edit ─────────────────────────────');
-  console.log('instruction:', instruction);
-  console.log('────────────────────────────────────────────────────\n');
+  log('RESPONSES API instruction', instruction);
 
   const response = await openai.responses.create({
     model: 'gpt-4o',
@@ -62,23 +72,35 @@ async function editWithGPT4o(imageDataUrl: string, instruction: string): Promise
         role: 'user',
         content: [
           { type: 'input_image', image_url: imageDataUrl, detail: 'high' },
-          { type: 'input_text',  text: instruction },
+          {
+            type: 'input_text',
+            text: `You are looking at a real garden photo. Generate a photorealistic image that shows this EXACT garden with a beautiful landscape design applied. Critical requirements:
+- Keep the exact same camera angle, perspective, and framing as the photo
+- Keep every existing tree, its trunk character, canopy shape, and position exactly as in the photo
+- Keep the same garden boundaries, fences, walls, and neighboring structures visible in the background
+- Keep the natural daylight conditions and photographic style
+- The result must be immediately recognizable as the same garden/space from the same viewpoint
+- Only change: ground cover, planting beds, borders, paths, and smaller decorative elements
+
+Design to apply: ${instruction}`,
+          },
         ],
       },
     ],
     tools: [{ type: 'image_generation' }],
+    tool_choice: 'required',
   });
 
-  console.log('Response output types:', response.output.map((o) => o.type));
+  log('RESPONSES API output types', response.output.map((o) => o.type).join(', '));
 
   for (const item of response.output) {
     if (item.type === 'image_generation_call' && item.result) {
-      console.log('Got image_generation_call result, length:', item.result.length);
-      return item.result; // base64 string
+      log('RESPONSES API got image', `length: ${item.result.length}`);
+      return item.result;
     }
   }
 
-  console.log('No image_generation_call found in response');
+  log('RESPONSES API', 'No image_generation_call found in response');
   return null;
 }
 
@@ -88,6 +110,7 @@ export async function analyzeAndDesign(
   imageDataUrl: string,
   preferences: GardenPreferences
 ): Promise<DesignResponse> {
+  log('REQUEST', `mood=${preferences.mood} time=${preferences.timeOfUse}`);
   const sliderDesc = describeSliders(preferences.sliders);
   const buffer = await resolveImageBuffer(imageDataUrl);
   const resizedDataUrl = await resizeForAPI(buffer);
@@ -99,7 +122,7 @@ export async function analyzeAndDesign(
     messages: [
       {
         role: 'system',
-        content: 'You are a professional landscape architect. Study the photo carefully and suggest one specific, small addition to the border areas only. Valid JSON only.',
+        content: 'You are a professional landscape architect and photography director. Study the photo carefully and produce a full garden redesign description that preserves the exact trees, structures and spatial layout of the original photo. Valid JSON only.',
       },
       {
         role: 'user',
@@ -107,7 +130,7 @@ export async function analyzeAndDesign(
           { type: 'image_url', image_url: { url: resizedDataUrl, detail: 'high' } },
           {
             type: 'text',
-            text: `Look at this specific garden photo. Suggest ONE small, realistic addition to the edges or border areas only — do not change the centre.
+            text: `You are a professional landscape architect and photography director. Study this garden photo in detail.
 
 Intentions: feeling=${preferences.mood}, time=${preferences.timeOfUse}, privacy=${preferences.visibility}, character=${sliderDesc}
 
@@ -115,11 +138,17 @@ Respond with JSON:
 {
   "harmonyLevel": <0-100>,
   "generationMessage": "<evocative phrase, max 6 words>",
-  "imageDescription": "<2-3 sentences describing exactly what is visible in this photo>",
-  "suggestions": ["<suggestion 1>", "<suggestion 2>"],
-  "cornerNote": "<one specific observation about an edge or corner in THIS photo>",
+  "imageDescription": "<2-3 sentences: exactly what is visible — tree species, surfaces, structures, colours, background>",
+  "suggestions": ["<specific design suggestion 1>", "<specific design suggestion 2>"],
+  "cornerNote": "<one specific observation about a feature or opportunity visible in THIS photo>",
   "suggestedObject": { "name": "<object>", "description": "<one line>", "reason": "<why it fits THIS garden>" },
-  "editInstruction": "<One specific instruction for editing this photo. Start with an action verb. Describe exactly WHERE to add something (e.g. 'along the left fence', 'in the bottom-right corner'). End with: keeping everything else in the photo exactly as it is. Max 2 sentences. Match mood=${preferences.mood}.>"
+  "suggestedPlacements": [
+    { "name": "<object name>", "emoji": "<single emoji>", "description": "<one line description>", "instruction": "Add/Place/Plant ... in/along/near [specific location], keeping everything else exactly as it is." },
+    { "name": "<object name>", "emoji": "<single emoji>", "description": "<one line description>", "instruction": "Add/Place/Plant ... in/along/near [specific location], keeping everything else exactly as it is." },
+    { "name": "<object name>", "emoji": "<single emoji>", "description": "<one line description>", "instruction": "Add/Place/Plant ... in/along/near [specific location], keeping everything else exactly as it is." },
+    { "name": "<object name>", "emoji": "<single emoji>", "description": "<one line description>", "instruction": "Add/Place/Plant ... in/along/near [specific location], keeping everything else exactly as it is." }
+  ],
+  "designInstruction": "<Write a vivid scene description of the redesigned garden AS A PHOTOGRAPH. Start by anchoring the scene: describe the camera angle, what trees are visible (species, trunk character, canopy positions in frame), what background elements are visible, as they appear in THIS photo. Then weave in the design additions seamlessly: describe the ground materials, planting beds, border plants by species name, path surface, any lighting or furniture. The entire description must sound like you are describing a single coherent photograph — not instructions, not a list. Every design choice must match Mood=${preferences.mood}, Time=${preferences.timeOfUse}, Character=${sliderDesc}. Write 5-7 detailed sentences. Use NO instruction words (add, keep, transform, change) — only descriptive scene language.>"
 }`,
           },
         ],
@@ -132,7 +161,8 @@ Respond with JSON:
     harmonyLevel: number; generationMessage: string; imageDescription: string;
     suggestions: string[]; cornerNote: string;
     suggestedObject: { name: string; description: string; reason: string };
-    editInstruction: string;
+    suggestedPlacements: { name: string; emoji: string; description: string; instruction: string }[];
+    designInstruction: string;
   };
 
   try {
@@ -140,22 +170,26 @@ Respond with JSON:
   } catch {
     analysis = {
       harmonyLevel: 72,
-      generationMessage: 'Enhancing Your Garden...',
+      generationMessage: 'Designing Your Garden...',
       imageDescription: 'A residential garden with existing plantings.',
       suggestions: ['Add layered border planting for depth.', 'A focal point would enhance the mood.'],
-      cornerNote: 'The boundary areas offer space for structural planting.',
+      cornerNote: 'The space has strong potential for a designed landscape.',
       suggestedObject: { name: 'Natural Stone Birdbath', description: 'Weathered limestone pedestal', reason: 'Calm focal point that invites wildlife.' },
-      editInstruction: `Add a small cluster of ${preferences.mood} flowering plants along the left border, keeping everything else in the photo exactly as it is.`,
+      suggestedPlacements: [
+        { name: 'Stone Bench', emoji: '🪑', description: 'Weathered stone seating for contemplation', instruction: 'Add a stone bench near the largest tree, keeping everything else exactly as it is.' },
+        { name: 'Lavender Border', emoji: '💜', description: 'Fragrant purple flowering border', instruction: 'Plant a lavender border along the main path edge, keeping everything else exactly as it is.' },
+        { name: 'Garden Lantern', emoji: '🏮', description: 'Warm ambient lighting post', instruction: 'Place a garden lantern at the path entrance, keeping everything else exactly as it is.' },
+        { name: 'Water Feature', emoji: '💧', description: 'Small bubbling stone fountain', instruction: 'Add a small stone water feature in the center of the lawn area, keeping everything else exactly as it is.' },
+      ],
+      designInstruction: `Transform this garden into a beautiful ${preferences.mood} landscape. Keep the existing trees and structural elements. Add lush planting beds, a winding path, flowering borders, and garden lighting suited to ${preferences.timeOfUse} use.`,
     };
   }
 
-  console.log('\n─── GPT-4o analysis ───────────────────────────────');
-  console.log('imageDescription:', analysis.imageDescription);
-  console.log('editInstruction :', analysis.editInstruction);
-  console.log('────────────────────────────────────────────────────\n');
+  log('GPT-4o imageDescription', analysis.imageDescription);
+  log('GPT-4o designInstruction', analysis.designInstruction);
 
-  // 2. Edit the photo via Responses API — same pipeline as ChatGPT
-  const b64 = await editWithGPT4o(resizedDataUrl, analysis.editInstruction);
+  // 2. Full redesign via Responses API — same pipeline as ChatGPT
+  const b64 = await editWithGPT4o(resizedDataUrl, analysis.designInstruction);
 
   const imageUrl = b64 ? `data:image/jpeg;base64,${b64}` : '';
 
@@ -167,6 +201,7 @@ Respond with JSON:
     cornerNote: analysis.cornerNote,
     suggestedObject: analysis.suggestedObject,
     imageDescription: analysis.imageDescription,
+    suggestedPlacements: analysis.suggestedPlacements ?? [],
   };
 }
 
@@ -182,10 +217,64 @@ export async function applyInstruction(
   return `data:image/jpeg;base64,${b64}`;
 }
 
+export async function segmentObjects(imageDataUrl: string): Promise<SegmentedObject[]> {
+  const buffer = await resolveImageBuffer(imageDataUrl);
+  const resizedDataUrl = await resizeForAPI(buffer);
+
+  const res = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    response_format: { type: 'json_object' },
+    messages: [
+      {
+        role: 'system',
+        content: 'You are a computer vision system. Identify distinct objects and areas in garden photos and return their positions as percentages. Respond with valid JSON only.',
+      },
+      {
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: resizedDataUrl, detail: 'high' } },
+          {
+            type: 'text',
+            text: `Identify all distinct objects and areas visible in this garden photo. For each object, estimate its center position and bounding box as percentages of the image dimensions (0-100).
+
+Look for: trees, paths, seating, planters, water features, lawn areas, borders, structures, fences, flower beds, hedges, ornaments.
+
+Return up to 15 objects as JSON:
+{
+  "objects": [
+    {
+      "id": "obj_1",
+      "label": "<descriptive name>",
+      "emoji": "<single relevant emoji>",
+      "x": <center x as % of width, 0-100>,
+      "y": <center y as % of height, 0-100>,
+      "width": <bounding box width as %, 5-60>,
+      "height": <bounding box height as %, 5-60>
+    },
+    ...
+  ]
+}
+
+Be precise with positions. Use the full image coordinate space.`,
+          },
+        ],
+      },
+    ],
+    max_tokens: 1500,
+  });
+
+  try {
+    const parsed = JSON.parse(res.choices[0].message.content || '{}') as { objects?: SegmentedObject[] };
+    return (parsed.objects ?? []).slice(0, 15);
+  } catch {
+    return [];
+  }
+}
+
 export async function refreshInsights(
   imageDescription: string,
   preferences: GardenPreferences
-): Promise<Omit<DesignResponse, 'imageUrl' | 'generationMessage' | 'imageDescription'>> {
+): Promise<Omit<DesignResponse, 'imageUrl' | 'generationMessage' | 'imageDescription' | 'suggestedPlacements'>> {
   const sliderDesc = describeSliders(preferences.sliders);
 
   const res = await openai.chat.completions.create({
