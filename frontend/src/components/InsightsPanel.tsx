@@ -108,7 +108,7 @@ export function InsightsPanel({ result, refreshing, placing: _placing, onFlowMod
             </div>
 
             {/* Suggestions */}
-            {result.suggestions.map((s, i) => (
+            {(result.suggestions ?? []).map((s, i) => (
               <div key={i} style={{
                 display: 'flex', gap: 12, alignItems: 'flex-start',
                 animation: `fadeIn 0.3s ease ${i * 0.1}s both`,

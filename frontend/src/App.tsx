@@ -4,7 +4,7 @@ import { GardenCanvas } from './components/GardenCanvas';
 import { InsightsPanel } from './components/InsightsPanel';
 import { ArrangeView } from './components/ArrangeView';
 import { HistoryPanel } from './components/HistoryPanel';
-import { generateDesign, refreshInsights, applyInstruction, segmentImage } from './lib/api';
+import { generateDesign, refreshInsights, applyInstruction, segmentImage, placeObjectImage } from './lib/api';
 import { useI18n, getLoadingMessages, getApplyMessages, type Lang } from './lib/i18n';
 import type { GardenPreferences, DesignResult, SegmentedObject, HistoryItem } from './lib/types';
 
@@ -120,6 +120,35 @@ export default function App() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Instruction failed');
+    } finally {
+      setApplying(false);
+      stopMessageCycle();
+    }
+  }, [result, imageDataUrl, lang]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handlePlaceObjectImage = useCallback(async (objectDataUrl: string, context: string) => {
+    if (!imageDataUrl) return;
+    const base = result?.imageUrl ?? imageDataUrl;
+    setApplying(true);
+    setError(null);
+    startMessageCycle(getApplyMessages(lang));
+    try {
+      const newUrl = await placeObjectImage(base, objectDataUrl, context || undefined);
+      if (newUrl) {
+        addToHistory(newUrl, 'instruction', context || 'Object geplaatst vanuit foto');
+        setResult(prev => prev ? { ...prev, imageUrl: newUrl } : {
+          imageUrl: newUrl,
+          harmonyLevel: 75,
+          generationMessage: 'Object geplaatst.',
+          suggestions: [],
+          cornerNote: '',
+          suggestedObject: { name: '', description: '', reason: '' },
+          imageDescription: '',
+          suggestedPlacements: [],
+        });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Placement failed');
     } finally {
       setApplying(false);
       stopMessageCycle();
@@ -365,6 +394,7 @@ export default function App() {
           onVisibilityChange={v => setPreferences(p => ({ ...p, visibility: v }))}
           onStartCreating={handleStartCreating}
           onInstruction={handleInstruction}
+          onPlaceObjectImage={handlePlaceObjectImage}
         />
 
         <GardenCanvas

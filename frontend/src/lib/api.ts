@@ -43,6 +43,24 @@ export async function segmentImage(imageDataUrl: string): Promise<SegmentedObjec
   return data.objects ?? [];
 }
 
+export async function placeObjectImage(
+  gardenImageDataUrl: string,
+  objectImageDataUrl: string,
+  context?: string
+): Promise<string> {
+  const res = await fetch(`${API}/place-image`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ gardenImageDataUrl, objectImageDataUrl, context }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error((err as { error: string }).error || 'Placement failed');
+  }
+  const data = await res.json() as { imageUrl: string };
+  return data.imageUrl;
+}
+
 export async function refreshInsights(
   imageDescription: string,
   preferences: GardenPreferences

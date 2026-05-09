@@ -14,6 +14,7 @@ interface Props {
   onVisibilityChange: (v: GardenPreferences['visibility']) => void;
   onStartCreating: () => void;
   onInstruction: (text: string) => void;
+  onPlaceObjectImage: (objectDataUrl: string, context: string) => void;
 }
 
 const MOODS: { value: GardenPreferences['mood']; labelKey: 'mood.tranquil' | 'mood.social' | 'mood.intimate'; icon: string; gradient: string; glowColor: string }[] = [
@@ -31,15 +32,17 @@ const TIMES: { value: GardenPreferences['timeOfUse']; labelKey: 'time.morning' |
 export function IntentionsPanel({
   preferences, imagePreview, hasImage, generating, applying,
   onImageUpload, onMoodChange, onTimeChange, onVisibilityChange,
-  onStartCreating, onInstruction,
+  onStartCreating, onInstruction, onPlaceObjectImage,
 }: Props) {
   const { t } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
+  const objectFileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [draft, setDraft] = useState('');
   const [lastSent, setLastSent] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [objectImageDataUrl, setObjectImageDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!applying && lastSent) {
@@ -56,9 +59,24 @@ export function IntentionsPanel({
     if (f?.type.startsWith('image/')) onImageUpload(f);
   }
 
+  function handleObjectFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = e => setObjectImageDataUrl(e.target?.result as string);
+    reader.readAsDataURL(file);
+  }
+
   function submit() {
+    if (applying || generating) return;
+    if (objectImageDataUrl) {
+      const context = draft.trim();
+      setLastSent(context || 'Place object from photo');
+      setDraft('');
+      setObjectImageDataUrl(null);
+      onPlaceObjectImage(objectImageDataUrl, context);
+      return;
+    }
     const text = draft.trim();
-    if (!text || applying || generating) return;
+    if (!text) return;
     setLastSent(text);
     setDraft('');
     onInstruction(text);
@@ -68,7 +86,7 @@ export function IntentionsPanel({
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
   }
 
-  const canSend = hasImage && !!draft.trim() && !applying && !generating;
+  const canSend = hasImage && (!!objectImageDataUrl || !!draft.trim()) && !applying && !generating;
 
   return (
     <div className="marble-green" style={{
@@ -313,14 +331,65 @@ export function IntentionsPanel({
           </div>
         )}
 
+        {/* Object image thumbnail */}
+        {objectImageDataUrl && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8,
+            background: 'var(--garden-card)', borderRadius: 'var(--radius-md)',
+            border: '1px solid rgba(122,182,72,0.2)', padding: '6px 10px',
+            animation: 'fadeIn 0.2s ease',
+          }}>
+            <img src={objectImageDataUrl} alt="Object to place" style={{
+              width: 36, height: 36, objectFit: 'cover',
+              borderRadius: 'var(--radius-sm)', flexShrink: 0,
+            }} />
+            <span style={{ fontSize: 11, color: 'var(--green-400)', flex: 1, fontWeight: 500 }}>
+              Object geselecteerd
+            </span>
+            <button onClick={() => setObjectImageDataUrl(null)} style={{
+              background: 'none', border: 'none', color: 'var(--text-muted)',
+              cursor: 'pointer', padding: 2, display: 'flex', alignItems: 'center',
+            }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 8 }}>
+          {/* Object photo upload button */}
+          <button
+            onClick={() => objectFileRef.current?.click()}
+            disabled={!hasImage || applying || generating}
+            title="Upload een foto van een object om in de tuin te plaatsen"
+            style={{
+              alignSelf: 'flex-end', width: 36, height: 36,
+              background: objectImageDataUrl ? 'var(--green-subtle)' : 'var(--garden-card)',
+              border: `1px solid ${objectImageDataUrl ? 'rgba(122,182,72,0.3)' : 'var(--garden-border)'}`,
+              borderRadius: 'var(--radius-md)',
+              color: objectImageDataUrl ? 'var(--green-400)' : 'var(--text-muted)',
+              cursor: hasImage ? 'pointer' : 'not-allowed',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0, opacity: hasImage ? 1 : 0.35,
+              transition: 'all var(--duration-normal) var(--ease-out)',
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </button>
+          <input ref={objectFileRef} type="file" accept="image/*" style={{ display: 'none' }}
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleObjectFile(f); e.target.value = ''; }} />
+
           <textarea
             ref={textareaRef}
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onKeyDown={handleKey}
             disabled={!hasImage || applying || generating}
-            placeholder={hasImage ? t('intentions.placeholder') : t('intentions.uploadFirst')}
+            placeholder={objectImageDataUrl ? 'Optioneel: waar plaatsen? (Enter)' : (hasImage ? t('intentions.placeholder') : t('intentions.uploadFirst'))}
             rows={2}
             style={{
               flex: 1, background: 'var(--garden-card)',
