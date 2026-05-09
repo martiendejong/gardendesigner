@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { analyzeAndDesign, refreshInsights, applyInstruction, segmentObjects } from '../services/aiService';
+import { analyzeAndDesign, refreshInsights, applyInstruction, segmentObjects, placeObjectInGarden } from '../services/aiService';
 
 export const gardenRouter = Router();
 
@@ -47,6 +47,22 @@ gardenRouter.post('/segment', async (req: Request, res: Response): Promise<void>
   } catch (err) {
     console.error('[/api/segment]', err);
     res.status(500).json({ error: 'Segmentation failed' });
+  }
+});
+
+gardenRouter.post('/place-image', async (req: Request, res: Response): Promise<void> => {
+  const { gardenImageDataUrl, objectImageDataUrl, context } = req.body;
+  if (!gardenImageDataUrl || !objectImageDataUrl) {
+    res.status(400).json({ error: 'gardenImageDataUrl and objectImageDataUrl are required' });
+    return;
+  }
+  try {
+    const b64 = await placeObjectInGarden(gardenImageDataUrl, objectImageDataUrl, context);
+    const imageUrl = b64 ? `data:image/jpeg;base64,${b64}` : '';
+    res.json({ imageUrl });
+  } catch (err) {
+    console.error('[/api/place-image]', err);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Placement failed' });
   }
 });
 

@@ -66,7 +66,7 @@ async function editWithGPT4o(imageDataUrl: string, instruction: string): Promise
   log('RESPONSES API instruction', instruction);
 
   const response = await openai.responses.create({
-    model: 'gpt-4o',
+    model: 'gpt-5.5',
     input: [
       {
         role: 'user',
@@ -117,7 +117,7 @@ export async function analyzeAndDesign(
 
   // 1. GPT-4o vision: analyse this specific garden and produce a targeted edit instruction
   const analysisRes = await openai.chat.completions.create({
-    model: 'gpt-4o',
+    model: 'gpt-5.5',
     response_format: { type: 'json_object' },
     messages: [
       {
@@ -154,7 +154,7 @@ Respond with JSON:
         ],
       },
     ],
-    max_tokens: 900,
+    max_completion_tokens: 900,
   });
 
   let analysis: {
@@ -166,7 +166,9 @@ Respond with JSON:
   };
 
   try {
-    analysis = JSON.parse(analysisRes.choices[0].message.content || '{}');
+    const raw = analysisRes.choices[0].message.content || '{}';
+    log('GPT-5.5 raw response', raw.slice(0, 2000));
+    analysis = JSON.parse(raw);
   } catch {
     analysis = {
       harmonyLevel: 72,
@@ -222,7 +224,7 @@ export async function segmentObjects(imageDataUrl: string): Promise<SegmentedObj
   const resizedDataUrl = await resizeForAPI(buffer);
 
   const res = await openai.chat.completions.create({
-    model: 'gpt-4o',
+    model: 'gpt-5.5',
     response_format: { type: 'json_object' },
     messages: [
       {
@@ -260,7 +262,7 @@ Be precise with positions. Use the full image coordinate space.`,
         ],
       },
     ],
-    max_tokens: 1500,
+    max_completion_tokens: 1500,
   });
 
   try {
@@ -271,6 +273,47 @@ Be precise with positions. Use the full image coordinate space.`,
   }
 }
 
+export async function placeObjectInGarden(
+  gardenImageDataUrl: string,
+  objectImageDataUrl: string,
+  context?: string
+): Promise<string> {
+  const gardenBuffer = await resolveImageBuffer(gardenImageDataUrl);
+  const gardenResized = await resizeForAPI(gardenBuffer);
+  const objectBuffer = await resolveImageBuffer(objectImageDataUrl);
+  const objectResized = await resizeForAPI(objectBuffer);
+
+  const instruction = context
+    ? `The first image is a garden photo. The second image shows an object. Place that object naturally into the garden. Additional context: ${context}. Keep the exact camera angle, perspective, and all existing garden elements unchanged.`
+    : `The first image is a garden photo. The second image shows an object. Identify the main object in the second image and place it naturally into the garden photo, choosing the most aesthetically fitting location. Keep the exact camera angle, perspective, and all existing garden elements unchanged.`;
+
+  log('placeObjectInGarden instruction', instruction);
+
+  const response = await openai.responses.create({
+    model: 'gpt-5.5',
+    input: [
+      {
+        role: 'user',
+        content: [
+          { type: 'input_image', image_url: gardenResized, detail: 'high' },
+          { type: 'input_image', image_url: objectResized, detail: 'high' },
+          { type: 'input_text', text: instruction },
+        ],
+      },
+    ],
+    tools: [{ type: 'image_generation' }],
+    tool_choice: 'required',
+  });
+
+  for (const item of response.output) {
+    if (item.type === 'image_generation_call' && item.result) {
+      log('placeObjectInGarden got image', `length: ${item.result.length}`);
+      return item.result;
+    }
+  }
+  return '';
+}
+
 export async function refreshInsights(
   imageDescription: string,
   preferences: GardenPreferences
@@ -278,7 +321,7 @@ export async function refreshInsights(
   const sliderDesc = describeSliders(preferences.sliders);
 
   const res = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+    model: 'gpt-5.5',
     response_format: { type: 'json_object' },
     messages: [
       { role: 'system', content: 'You are a professional landscape architect. Respond with valid JSON only.' },
@@ -289,7 +332,7 @@ Preferences: feeling=${preferences.mood}, time=${preferences.timeOfUse}, privacy
 Respond: { "harmonyLevel": <0-100>, "suggestions": ["<s1>","<s2>"], "cornerNote": "<observation>", "suggestedObject": { "name": "<object>", "description": "<desc>", "reason": "<why>" } }`,
       },
     ],
-    max_tokens: 500,
+    max_completion_tokens: 500,
   });
 
   try {
