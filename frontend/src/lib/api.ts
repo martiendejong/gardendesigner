@@ -61,6 +61,24 @@ export async function placeObjectImage(
   return data.imageUrl;
 }
 
+export interface GardenSuggestion {
+  id: string;
+  title: string;
+  description: string;
+  instruction: string;
+}
+
+export async function getSuggestions(imageDataUrl: string): Promise<GardenSuggestion[]> {
+  const res = await fetch(`${API}/suggestions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imageDataUrl }),
+  });
+  if (!res.ok) return [];
+  const data = await res.json() as { suggestions: GardenSuggestion[] };
+  return data.suggestions ?? [];
+}
+
 export async function refreshInsights(
   imageDescription: string,
   preferences: GardenPreferences

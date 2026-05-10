@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { analyzeAndDesign, refreshInsights, applyInstruction, segmentObjects, placeObjectInGarden } from '../services/aiService';
+import { analyzeAndDesign, refreshInsights, applyInstruction, segmentObjects, placeObjectInGarden, generateSuggestions } from '../services/aiService';
 
 export const gardenRouter = Router();
 
@@ -63,6 +63,18 @@ gardenRouter.post('/place-image', async (req: Request, res: Response): Promise<v
   } catch (err) {
     console.error('[/api/place-image]', err);
     res.status(500).json({ error: err instanceof Error ? err.message : 'Placement failed' });
+  }
+});
+
+gardenRouter.post('/suggestions', async (req: Request, res: Response): Promise<void> => {
+  const { imageDataUrl } = req.body;
+  if (!imageDataUrl) { res.status(400).json({ error: 'imageDataUrl required' }); return; }
+  try {
+    const suggestions = await generateSuggestions(imageDataUrl);
+    res.json({ suggestions });
+  } catch (err) {
+    console.error('[/api/suggestions]', err);
+    res.status(500).json({ error: 'Suggestions failed' });
   }
 });
 

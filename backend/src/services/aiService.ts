@@ -56,9 +56,10 @@ async function resolveImageBuffer(src: string): Promise<Buffer> {
   return Buffer.from(match[1], 'base64');
 }
 
-/** Resize to fit within MAX_PX on longest edge, preserving aspect ratio. No crop. */
+/** Resize to fit within MAX_PX on longest edge, applying EXIF rotation first. */
 async function resizeForAPI(imageBuffer: Buffer): Promise<string> {
   const resized = await sharp(imageBuffer)
+    .rotate()
     .resize(MAX_PX, MAX_PX, { fit: 'inside', withoutEnlargement: true })
     .jpeg({ quality: 92 })
     .toBuffer();
@@ -68,6 +69,7 @@ async function resizeForAPI(imageBuffer: Buffer): Promise<string> {
 
 async function prepareImageForEdit(imageBuffer: Buffer): Promise<Buffer> {
   return sharp(imageBuffer)
+    .rotate()
     .resize(MAX_PX, MAX_PX, { fit: 'inside', withoutEnlargement: true })
     .png()
     .toBuffer();
@@ -360,11 +362,13 @@ export async function placeObjectInGarden(
   const objectBuffer = await resolveImageBuffer(objectImageDataUrl);
 
   const gardenPng = await sharp(gardenBuffer)
+    .rotate()
     .resize(MAX_PX, MAX_PX, { fit: 'inside', withoutEnlargement: true })
     .png()
     .toBuffer();
 
   const objectPng = await sharp(objectBuffer)
+    .rotate()
     .resize(MAX_PX, MAX_PX, { fit: 'inside', withoutEnlargement: true })
     .png()
     .toBuffer();
@@ -474,5 +478,66 @@ Respond:
         reason: 'Adds sensory depth.',
       },
     };
+  }
+}
+
+export async function generateSuggestions(imageDataUrl: string): Promise<Array<{
+  id: string;
+  title: string;
+  description: string;
+  instruction: string;
+}>> {
+  const buffer = await resolveImageBuffer(imageDataUrl);
+  const resizedDataUrl = await resizeForAPI(buffer);
+
+  const res = await openai.chat.completions.create({
+    model: 'gpt-5.5',
+    response_format: { type: 'json_object' },
+    messages: [
+      {
+        role: 'system',
+        content: 'You are a professional landscape architect. Analyze garden photos and return specific, actionable improvement suggestions as JSON. Each suggestion must be concrete and achievable through a single image edit instruction.',
+      },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image_url',
+            image_url: { url: resizedDataUrl, detail: 'high' },
+          },
+          {
+            type: 'text',
+            text: `Analyze this garden photo and return 5 to 8 specific improvement suggestions.
+
+Return JSON in this exact format:
+{
+  "suggestions": [
+    {
+      "id": "s1",
+      "title": "Short title (3-5 words)",
+      "description": "One sentence explaining what this will improve and why it helps this specific garden.",
+      "instruction": "A precise edit instruction for this garden photo. E.g. 'Add a row of lavender plants along the left fence. Keep everything else exactly as it is.'"
+    }
+  ]
+}
+
+Rules:
+- Be specific to what you actually see in this photo
+- Each suggestion should be a single visible change
+- Instructions must be precise enough for an AI image editor
+- Mix plant additions, structural elements, lighting, paths, textures
+- Do not repeat similar suggestions`,
+          },
+        ],
+      },
+    ],
+    max_completion_tokens: 1200,
+  });
+
+  try {
+    const parsed = JSON.parse(res.choices[0].message.content || '{}');
+    return (parsed.suggestions ?? []).slice(0, 8);
+  } catch {
+    return [];
   }
 }

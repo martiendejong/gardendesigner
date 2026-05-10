@@ -5,6 +5,7 @@ interface Props {
   result: DesignResult | null;
   refreshing: boolean;
   placing: boolean;
+  hasImage: boolean;
   onFlowMode: () => void;
   onPlaceObject: () => void;
   suggestedPlacements: SuggestedPlacement[];
@@ -43,7 +44,7 @@ function HarmonyRing({ level }: { level: number }) {
   );
 }
 
-export function InsightsPanel({ result, refreshing, placing: _placing, onFlowMode, onPlaceObject: _onPlaceObject, suggestedPlacements, onInstruction, onProceedToArrange, segmenting }: Props) {
+export function InsightsPanel({ result, refreshing, placing: _placing, hasImage, onFlowMode, onPlaceObject: _onPlaceObject, suggestedPlacements, onInstruction, onProceedToArrange, segmenting }: Props) {
   const { t } = useI18n();
 
   return (
@@ -268,7 +269,7 @@ export function InsightsPanel({ result, refreshing, placing: _placing, onFlowMod
         background: 'linear-gradient(180deg, var(--garden-deep) 0%, var(--garden-black) 100%)',
         position: 'relative', zIndex: 1,
       }}>
-        {result && (
+        {(result || hasImage) && (
           <button
             onClick={onProceedToArrange}
             disabled={segmenting}

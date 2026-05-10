@@ -4,8 +4,8 @@ import { GardenCanvas } from './components/GardenCanvas';
 import { InsightsPanel } from './components/InsightsPanel';
 import { ArrangeView } from './components/ArrangeView';
 import { HistoryPanel } from './components/HistoryPanel';
-import { generateDesign, refreshInsights, applyInstruction, segmentImage, placeObjectImage } from './lib/api';
-import { useI18n, getLoadingMessages, getApplyMessages, type Lang } from './lib/i18n';
+import { generateDesign, applyInstruction, placeObjectImage } from './lib/api';
+import { useI18n, getLoadingMessages, getApplyMessages } from './lib/i18n';
 import type { GardenPreferences, DesignResult, SegmentedObject, HistoryItem } from './lib/types';
 
 const DEFAULT_PREFS: GardenPreferences = {
@@ -16,39 +16,29 @@ const DEFAULT_PREFS: GardenPreferences = {
 };
 
 const ORIGINAL_REFS = /\b(original|origineel|uploaded|begin|base photo|originele foto|terug naar|back to original|start photo|start foto|mijn foto|my photo|van het begin|from the start|eerste foto|first photo)\b/i;
-
-function refersToOriginal(text: string): boolean {
-  return ORIGINAL_REFS.test(text);
-}
-
-function makeId() {
-  return Math.random().toString(36).slice(2, 10);
-}
-
-const LANG_LABELS: Record<Lang, string> = { nl: 'NL', en: 'EN', fr: 'FR' };
-const LANG_ORDER: Lang[] = ['nl', 'en', 'fr'];
+function refersToOriginal(text: string) { return ORIGINAL_REFS.test(text); }
+function makeId() { return Math.random().toString(36).slice(2, 10); }
 
 export default function App() {
-  const { t, lang, setLang } = useI18n();
+  const { lang } = useI18n();
+
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [preferences, setPreferences] = useState<GardenPreferences>(DEFAULT_PREFS);
+  const [result, setResult] = useState<DesignResult | null>(null);
+
   const [generating, setGenerating] = useState(false);
   const [applying, setApplying] = useState(false);
-  const [placing, setPlacing] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [result, setResult] = useState<DesignResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [generatingMessage, setGeneratingMessage] = useState('');
-  const [flowMode, setFlowMode] = useState(false);
+
   const [phase, setPhase] = useState<'design' | 'arrange'>('design');
-  const [segmenting, setSegmenting] = useState(false);
-  const [segmentedObjects, setSegmentedObjects] = useState<SegmentedObject[]>([]);
+  const [segmenting] = useState(false);
+  const [segmentedObjects] = useState<SegmentedObject[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
   const msgTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const sliderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function addToHistory(imageUrl: string, type: HistoryItem['type'], label: string) {
     setHistory(prev => [{ id: makeId(), imageUrl, type, label, timestamp: Date.now() }, ...prev]);
@@ -71,13 +61,12 @@ export default function App() {
     const reader = new FileReader();
     reader.onload = e => {
       const url = e.target?.result as string;
-      if (imageDataUrl) addToHistory(imageDataUrl, 'upload', 'Uploaded photo');
       setImagePreview(url);
       setImageDataUrl(url);
       setResult(null);
     };
     reader.readAsDataURL(file);
-  }, [imageDataUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleStartCreating = useCallback(async () => {
     if (!imageDataUrl) return;
@@ -85,8 +74,7 @@ export default function App() {
     setError(null);
     startMessageCycle(getLoadingMessages(lang));
     try {
-      const imageToUse = result?.imageUrl ?? imageDataUrl;
-      const design = await generateDesign(imageToUse, preferences);
+      const design = await generateDesign(imageDataUrl, preferences);
       setResult(design);
       if (design.imageUrl) addToHistory(design.imageUrl, 'generated', design.generationMessage || 'Generated design');
     } catch (err) {
@@ -95,7 +83,7 @@ export default function App() {
       setGenerating(false);
       stopMessageCycle();
     }
-  }, [imageDataUrl, result, preferences, lang]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [imageDataUrl, preferences, lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleInstruction = useCallback(async (text: string) => {
     if (!imageDataUrl) return;
@@ -108,14 +96,11 @@ export default function App() {
       if (newUrl) {
         addToHistory(newUrl, 'instruction', text.length > 40 ? text.slice(0, 40) + '…' : text);
         setResult(prev => prev ? { ...prev, imageUrl: newUrl } : {
-          imageUrl: newUrl,
-          harmonyLevel: 75,
+          imageUrl: newUrl, harmonyLevel: 75,
           generationMessage: 'Applied your instruction.',
-          suggestions: [],
-          cornerNote: '',
+          suggestions: [], cornerNote: '',
           suggestedObject: { name: '', description: '', reason: '' },
-          imageDescription: '',
-          suggestedPlacements: [],
+          imageDescription: '', suggestedPlacements: [],
         });
       }
     } catch (err) {
@@ -135,16 +120,13 @@ export default function App() {
     try {
       const newUrl = await placeObjectImage(base, objectDataUrl, context || undefined);
       if (newUrl) {
-        addToHistory(newUrl, 'instruction', context || 'Object geplaatst vanuit foto');
+        addToHistory(newUrl, 'instruction', context || 'Object placed from photo');
         setResult(prev => prev ? { ...prev, imageUrl: newUrl } : {
-          imageUrl: newUrl,
-          harmonyLevel: 75,
-          generationMessage: 'Object geplaatst.',
-          suggestions: [],
-          cornerNote: '',
+          imageUrl: newUrl, harmonyLevel: 75,
+          generationMessage: 'Object placed.',
+          suggestions: [], cornerNote: '',
           suggestedObject: { name: '', description: '', reason: '' },
-          imageDescription: '',
-          suggestedPlacements: [],
+          imageDescription: '', suggestedPlacements: [],
         });
       }
     } catch (err) {
@@ -155,40 +137,23 @@ export default function App() {
     }
   }, [result, imageDataUrl, lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handlePlaceObject = useCallback(async () => {
-    if (!result?.suggestedObject?.name) return;
-    const base = result.imageUrl ?? imageDataUrl;
-    if (!base) return;
-    const { name, description } = result.suggestedObject;
-    const instruction = `Place a ${name} (${description}) in the most natural and suitable spot in this garden.`;
-    setPlacing(true);
-    setError(null);
-    try {
-      const newUrl = await applyInstruction(base, instruction);
-      if (newUrl) {
-        addToHistory(newUrl, 'instruction', `Placed: ${name}`);
-        setResult(prev => prev ? { ...prev, imageUrl: newUrl } : prev);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Placement failed');
-    } finally {
-      setPlacing(false);
-    }
-  }, [result, imageDataUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+  const handleSliderChange = useCallback((key: keyof GardenPreferences['sliders'], value: number) => {
+    setPreferences(p => ({ ...p, sliders: { ...p.sliders, [key]: value } }));
+  }, []);
 
-  const handleProceedToArrange = useCallback(async () => {
-    if (!result) return;
-    setSegmenting(true);
-    try {
-      const objects = await segmentImage(result.imageUrl);
-      setSegmentedObjects(objects);
-      setPhase('arrange');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Segmentation failed');
-    } finally {
-      setSegmenting(false);
-    }
-  }, [result]);
+  const handleStyleSelect = useCallback((_style: 'contemplative' | 'social' | 'evening') => {
+    handleStartCreating();
+  }, [handleStartCreating]);
+
+  const handleStartOver = useCallback(() => {
+    setImageDataUrl(null);
+    setImagePreview(null);
+    setResult(null);
+    setPreferences(DEFAULT_PREFS);
+    setPhase('design');
+    setGeneratingMessage('');
+    setError(null);
+  }, []);
 
   const handleRestoreHistory = useCallback((item: HistoryItem) => {
     setImageDataUrl(item.imageUrl);
@@ -197,190 +162,106 @@ export default function App() {
     setShowHistory(false);
   }, []);
 
-  const handleSliderChange = useCallback((key: keyof GardenPreferences['sliders'], value: number) => {
-    const updated = { ...preferences, sliders: { ...preferences.sliders, [key]: value } };
-    setPreferences(updated);
-    if (result) {
-      if (sliderTimer.current) clearTimeout(sliderTimer.current);
-      sliderTimer.current = setTimeout(async () => {
-        setRefreshing(true);
-        try {
-          const ins = await refreshInsights(result.imageDescription, updated);
-          setResult(prev => prev ? { ...prev, ...ins } : prev);
-        } finally {
-          setRefreshing(false);
-        }
-      }, 900);
-    }
-  }, [preferences, result]);
+  const isWorking = generating || applying;
 
-  const handleStyleSelect = useCallback((style: 'contemplative' | 'social' | 'evening') => {
-    const map: Record<string, Partial<GardenPreferences>> = {
-      contemplative: { mood: 'tranquil', timeOfUse: 'morning', sliders: { ...preferences.sliders, tranquilVibrant: 0.1, socialSolitary: 0.8 } },
-      social:        { mood: 'social',   timeOfUse: 'daytime', sliders: { ...preferences.sliders, tranquilVibrant: 0.7, socialSolitary: 0.15 } },
-      evening:       { mood: 'intimate', timeOfUse: 'evening', sliders: { ...preferences.sliders, openSheltered: 0.7,  lightMass: 0.25 } },
-    };
-    setPreferences(prev => ({ ...prev, ...map[style] } as GardenPreferences));
-  }, [preferences.sliders]);
-
-  const isWorking = generating || applying || placing;
-
-  if (phase === 'arrange' && result) {
+  if (phase === 'arrange' && (imageDataUrl || result)) {
+    const arrangeImage = result?.imageUrl || imageDataUrl!;
     return (
       <ArrangeView
-        imageUrl={result.imageUrl}
+        imageUrl={arrangeImage}
         objects={segmentedObjects}
         segmenting={segmenting}
+        suggestedPlacements={result?.suggestedPlacements ?? []}
         onBack={() => setPhase('design')}
         onInstructionApplied={(newUrl) => {
           addToHistory(newUrl, 'instruction', 'Object moved');
-          setResult(prev => prev ? { ...prev, imageUrl: newUrl } : prev);
+          setResult(prev => prev ? { ...prev, imageUrl: newUrl } : {
+            imageUrl: newUrl, harmonyLevel: 75,
+            generationMessage: 'Object moved.',
+            suggestions: [], cornerNote: '',
+            suggestedObject: { name: '', description: '', reason: '' },
+            imageDescription: '', suggestedPlacements: [],
+          });
         }}
       />
     );
   }
 
-  if (flowMode && result) {
-    return (
-      <div style={{
-        height: '100%', position: 'relative', background: '#000', cursor: 'pointer',
-        overflow: 'hidden',
-      }}
-        onClick={() => setFlowMode(false)}>
-        <img src={result.imageUrl} alt="Flow mode" style={{
-          width: '100%', height: '100%', objectFit: 'cover', opacity: 0.9,
-          transition: 'opacity 1s ease',
-        }} />
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.6) 100%)',
-          pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute', inset: 0,
-          display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 50,
-        }}>
-          <p style={{
-            fontSize: 12, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.2em',
-            textTransform: 'uppercase', fontFamily: 'var(--font-sans)',
-          }}>{t('flow.exit')}</p>
-        </div>
-        <div style={{ position: 'absolute', top: 30, left: 0, right: 0, textAlign: 'center' }}>
-          <p style={{
-            fontSize: 24, fontWeight: 300, color: 'rgba(255,255,255,0.75)',
-            letterSpacing: '0.03em', fontFamily: 'var(--font-display)', fontStyle: 'italic',
-            textShadow: '0 2px 40px rgba(0,0,0,0.8)',
-          }}>{result.generationMessage}</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', height: '100%',
-      background: 'var(--garden-black)', color: 'var(--text-primary)',
-    }}>
-      {/* ── Premium Header ── */}
-      <header style={{
-        padding: '0 24px', height: 52, flexShrink: 0,
-        borderBottom: '1px solid var(--garden-border)',
-        display: 'flex', alignItems: 'center', gap: 12,
-        background: 'linear-gradient(180deg, rgba(15,26,18,0.95) 0%, rgba(6,10,7,0.98) 100%)',
-        backdropFilter: 'blur(12px)',
-        position: 'relative', zIndex: 10,
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--garden-black)' }}>
+
+      {/* Header */}
+      <div style={{
+        height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 20px', borderBottom: '1px solid var(--garden-border)',
+        background: 'linear-gradient(180deg, var(--garden-surface) 0%, var(--garden-deep) 100%)',
+        flexShrink: 0,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
-            width: 8, height: 8, borderRadius: '50%',
-            background: 'var(--green-400)',
-            boxShadow: '0 0 8px var(--green-glow), 0 0 20px rgba(122,182,72,0.15)',
-            animation: 'breathe 3s ease-in-out infinite',
-          }} />
-          <span style={{
-            fontWeight: 800, color: 'var(--green-400)', fontSize: 14,
-            letterSpacing: '0.16em', fontFamily: 'var(--font-sans)',
-          }}>JENGO</span>
-          <span style={{
-            color: 'var(--text-tertiary)', fontSize: 12, fontWeight: 400,
-            letterSpacing: '0.04em',
-          }}>{t('brand.subtitle')}</span>
-        </div>
-
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, height: 1,
-          background: 'linear-gradient(90deg, transparent 0%, rgba(122,182,72,0.1) 30%, rgba(122,182,72,0.1) 70%, transparent 100%)',
-        }} />
-
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-          {error && (
-            <span style={{
-              fontSize: 11, color: 'var(--coral)',
-              background: 'rgba(204,107,85,0.08)',
-              padding: '4px 12px', borderRadius: 'var(--radius-sm)',
-              border: '1px solid rgba(204,107,85,0.15)', fontWeight: 500,
-            }}>
-              {error}
-            </span>
-          )}
-
-          {/* Language Switcher */}
-          <div style={{
-            display: 'flex', borderRadius: 'var(--radius-md)', overflow: 'hidden',
-            border: '1px solid var(--garden-border)',
+            width: 28, height: 28, borderRadius: 8,
+            background: 'linear-gradient(135deg, #7ab648 0%, #4a8c28 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(122,182,72,0.3)',
           }}>
-            {LANG_ORDER.map(l => (
-              <button
-                key={l}
-                onClick={() => setLang(l)}
-                style={{
-                  padding: '5px 10px',
-                  background: lang === l ? 'var(--green-subtle)' : 'transparent',
-                  border: 'none',
-                  borderRight: l !== 'fr' ? '1px solid var(--garden-border)' : 'none',
-                  color: lang === l ? 'var(--green-400)' : 'var(--text-muted)',
-                  fontSize: 11, fontWeight: lang === l ? 700 : 500,
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                  letterSpacing: '0.04em',
-                  transition: 'all var(--duration-fast) var(--ease-out)',
-                }}
-              >
-                {LANG_LABELS[l]}
-              </button>
-            ))}
-          </div>
-
-          <button
-            onClick={() => setShowHistory(true)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 7,
-              background: history.length > 0 ? 'var(--green-subtle)' : 'transparent',
-              border: `1px solid ${history.length > 0 ? 'rgba(122,182,72,0.15)' : 'var(--garden-border)'}`,
-              borderRadius: 'var(--radius-md)', padding: '6px 14px',
-              color: history.length > 0 ? 'var(--green-400)' : 'var(--text-muted)',
-              fontSize: 12, cursor: 'pointer', fontWeight: 500,
-              fontFamily: 'var(--font-sans)',
-              transition: 'all var(--duration-normal) var(--ease-out)',
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22V12" /><path d="M12 12C12 6.5 6 4 3 6" /><path d="M12 12C12 6.5 18 4 21 6" />
             </svg>
-            <span>{t('header.history')}</span>
-            {history.length > 0 && (
-              <span style={{
-                background: 'linear-gradient(135deg, var(--green-400), var(--green-500))',
-                color: '#fff', fontSize: 10, fontWeight: 700,
-                borderRadius: 10, padding: '1px 7px', minWidth: 18, textAlign: 'center',
-                boxShadow: '0 0 8px rgba(122,182,72,0.3)',
-              }}>{history.length}</span>
-            )}
-          </button>
+          </div>
+          <span style={{
+            fontSize: 15, fontWeight: 700, color: 'var(--text-primary)',
+            letterSpacing: '-0.01em', fontFamily: 'var(--font-sans)',
+          }}>
+            Garden Designer
+          </span>
         </div>
-      </header>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {imageDataUrl && (
+            <button onClick={handleStartOver} style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '6px 12px', borderRadius: 8,
+              background: 'transparent', border: '1px solid rgba(204,107,85,0.3)',
+              color: 'rgba(204,107,85,0.7)', fontSize: 12, cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+            }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
+              </svg>
+              Start Over
+            </button>
+          )}
+          {history.length > 0 && (
+            <button onClick={() => setShowHistory(true)} style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '6px 12px', borderRadius: 8,
+              background: 'transparent', border: '1px solid var(--garden-border)',
+              color: 'var(--text-tertiary)', fontSize: 12, cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+            }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+              </svg>
+              History ({history.length})
+            </button>
+          )}
+        </div>
+      </div>
 
-      {/* ── Main Layout ── */}
+      {error && (
+        <div style={{
+          padding: '7px 20px', background: 'rgba(204,107,85,0.1)',
+          borderBottom: '1px solid rgba(204,107,85,0.2)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          flexShrink: 0,
+        }}>
+          <span style={{ fontSize: 12, color: '#cc6b55' }}>{error}</span>
+          <button onClick={() => setError(null)} style={{
+            background: 'none', border: 'none', color: '#cc6b55',
+            cursor: 'pointer', fontSize: 16, lineHeight: 1,
+          }}>×</button>
+        </div>
+      )}
+
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         <IntentionsPanel
           preferences={preferences}
@@ -409,13 +290,14 @@ export default function App() {
 
         <InsightsPanel
           result={result}
-          refreshing={refreshing}
-          placing={placing}
-          onFlowMode={() => setFlowMode(true)}
-          onPlaceObject={handlePlaceObject}
+          refreshing={isWorking}
+          placing={false}
+          hasImage={!!imageDataUrl}
+          onFlowMode={() => {}}
+          onPlaceObject={() => {}}
           suggestedPlacements={result?.suggestedPlacements ?? []}
           onInstruction={handleInstruction}
-          onProceedToArrange={handleProceedToArrange}
+          onProceedToArrange={() => setPhase('arrange')}
           segmenting={segmenting}
         />
       </div>
