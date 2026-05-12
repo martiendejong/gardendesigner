@@ -62,7 +62,6 @@ export function ArrangeView({
     return init;
   });
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [applying, setApplying] = useState(false);
   const [applyingLabel, setApplyingLabel] = useState('');
   const [rescanning, setRescanning] = useState(false);
@@ -79,7 +78,14 @@ export function ArrangeView({
   const [implementingSuggestions, setImplementingSuggestions] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const objectRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
   const dragStartPos = useRef<{ x: number; y: number } | null>(null);
+  const draggingPosRef = useRef({ x: 50, y: 50 });
+  const draggingRotationRef = useRef(0);
+  const draggingScaleRef = useRef(1);
+  const dragStartRotation = useRef(0);
+  const dragStartScale = useRef(1);
   const rotateStartAngle = useRef<number | null>(null);
   const scaleStartY = useRef<number | null>(null);
 
@@ -110,15 +116,6 @@ export function ArrangeView({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const getContainerPercent = useCallback((clientX: number, clientY: number) => {
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 50, y: 50 };
-    return {
-      x: Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)),
-      y: Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100)),
-    };
-  }, []);
-
   const handleMouseDown = useCallback((e: React.MouseEvent, objId: string) => {
     e.preventDefault(); e.stopPropagation();
     const pos = positions[objId] ?? { x: 50, y: 50 };
@@ -133,58 +130,71 @@ export function ArrangeView({
       setDeleteConfirmId(objId);
       return;
     }
+
+    // Seed all drag refs from current state
+    draggingPosRef.current = { x: pos.x, y: pos.y };
+    draggingRotationRef.current = rotations[objId] ?? 0;
+    draggingScaleRef.current = scales[objId] ?? 1;
+    dragStartRotation.current = rotations[objId] ?? 0;
+    dragStartScale.current = scales[objId] ?? 1;
+    dragStartPos.current = { x: pos.x, y: pos.y };
+
     if (activeTool === 'move') {
-      setDragOffset({
+      dragOffsetRef.current = {
         x: ((e.clientX - rect.left) / rect.width) * 100 - pos.x,
         y: ((e.clientY - rect.top) / rect.height) * 100 - pos.y,
-      });
-      setDraggingId(objId);
-      dragStartPos.current = { x: pos.x, y: pos.y };
+      };
     } else if (activeTool === 'rotate') {
       const centerX = rect.left + (pos.x / 100) * rect.width;
       const centerY = rect.top + (pos.y / 100) * rect.height;
       rotateStartAngle.current = Math.atan2(e.clientY - centerY, e.clientX - centerX);
-      setDraggingId(objId);
-      dragStartPos.current = pos;
     } else if (activeTool === 'scale') {
       scaleStartY.current = e.clientY;
-      setDraggingId(objId);
     }
-  }, [activeTool, positions]);
+
+    setDraggingId(objId);
+  }, [activeTool, positions, rotations, scales]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!draggingId) return;
-    const pos = positions[draggingId] ?? { x: 50, y: 50 };
+    const el = objectRefs.current[draggingId];
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
 
     if (activeTool === 'move') {
-      const pct = getContainerPercent(e.clientX, e.clientY);
-      setPositions(prev => ({
-        ...prev,
-        [draggingId]: { x: Math.max(2, Math.min(98, pct.x - dragOffset.x)), y: Math.max(2, Math.min(98, pct.y - dragOffset.y)) },
-      }));
+      const x = Math.max(2, Math.min(98, ((e.clientX - rect.left) / rect.width) * 100 - dragOffsetRef.current.x));
+      const y = Math.max(2, Math.min(98, ((e.clientY - rect.top) / rect.height) * 100 - dragOffsetRef.current.y));
+      draggingPosRef.current = { x, y };
+      if (el) { el.style.left = `${x}%`; el.style.top = `${y}%`; }
     } else if (activeTool === 'rotate' && rotateStartAngle.current !== null) {
+      const pos = draggingPosRef.current;
       const centerX = rect.left + (pos.x / 100) * rect.width;
       const centerY = rect.top + (pos.y / 100) * rect.height;
       const currentAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
       const delta = (currentAngle - rotateStartAngle.current) * (180 / Math.PI);
-      setRotations(prev => ({ ...prev, [draggingId]: (prev[draggingId] ?? 0) + delta }));
+      draggingRotationRef.current += delta;
       rotateStartAngle.current = currentAngle;
+      if (el) el.style.transform = `translate(-50%, -50%) rotate(${draggingRotationRef.current}deg) scale(${draggingScaleRef.current * 1.08})`;
     } else if (activeTool === 'scale' && scaleStartY.current !== null) {
       const deltaY = scaleStartY.current - e.clientY;
-      setScales(prev => ({ ...prev, [draggingId]: Math.max(0.3, Math.min(3, (prev[draggingId] ?? 1) + deltaY / 100)) }));
+      draggingScaleRef.current = Math.max(0.3, Math.min(3, draggingScaleRef.current + deltaY / 100));
       scaleStartY.current = e.clientY;
+      if (el) el.style.transform = `translate(-50%, -50%) rotate(${draggingRotationRef.current}deg) scale(${draggingScaleRef.current * 1.08})`;
     }
-  }, [draggingId, activeTool, dragOffset, getContainerPercent, positions]);
+  }, [draggingId, activeTool]);
 
   const handleMouseUp = useCallback(async () => {
     if (!draggingId) return;
-    const finalPos = positions[draggingId];
-    const startPos = dragStartPos.current;
+    const finalPos = { ...draggingPosRef.current };
+    const finalRotation = draggingRotationRef.current;
+    const finalScale = draggingScaleRef.current;
+    const startPos = { ...dragStartPos.current! };
     const id = draggingId;
-    const finalRotation = rotations[id] ?? 0;
-    const finalScale = scales[id] ?? 1;
+
+    // Commit final values to state so React re-render shows the right position
+    if (activeTool === 'move') setPositions(prev => ({ ...prev, [id]: finalPos }));
+    if (activeTool === 'rotate') setRotations(prev => ({ ...prev, [id]: finalRotation }));
+    if (activeTool === 'scale') setScales(prev => ({ ...prev, [id]: finalScale }));
 
     setDraggingId(null);
     dragStartPos.current = null;
@@ -195,18 +205,19 @@ export function ArrangeView({
     if (!obj) return;
 
     let instruction = '';
-    if (activeTool === 'move' && finalPos && startPos) {
+    if (activeTool === 'move') {
       if (Math.abs(finalPos.x - startPos.x) < 3 && Math.abs(finalPos.y - startPos.y) < 3) return;
       instruction = `Move the ${obj.label} from the ${posDesc(startPos.x, startPos.y)} to the ${posDesc(finalPos.x, finalPos.y)}. Keep everything else exactly as it is.`;
-    } else if (activeTool === 'rotate' && Math.abs(finalRotation) > 5) {
-      const dir = finalRotation > 0 ? 'clockwise' : 'counterclockwise';
-      instruction = `Rotate the ${obj.label} approximately ${Math.abs(Math.round(finalRotation))} degrees ${dir}. Keep everything else exactly as it is.`;
-      setRotations(prev => { const n = { ...prev }; delete n[id]; return n; });
-    } else if (activeTool === 'scale' && Math.abs(finalScale - 1) > 0.1) {
-      instruction = finalScale > 1
+    } else if (activeTool === 'rotate') {
+      const delta = finalRotation - dragStartRotation.current;
+      if (Math.abs(delta) < 5) return;
+      const dir = delta > 0 ? 'clockwise' : 'counterclockwise';
+      instruction = `Rotate the ${obj.label} approximately ${Math.abs(Math.round(delta))} degrees ${dir}. Keep everything else exactly as it is.`;
+    } else if (activeTool === 'scale') {
+      if (Math.abs(finalScale - dragStartScale.current) < 0.1) return;
+      instruction = finalScale > dragStartScale.current
         ? `Make the ${obj.label} noticeably larger. Keep everything else exactly as it is.`
         : `Make the ${obj.label} noticeably smaller. Keep everything else exactly as it is.`;
-      setScales(prev => { const n = { ...prev }; delete n[id]; return n; });
     } else {
       return;
     }
@@ -218,6 +229,9 @@ export function ArrangeView({
       if (newUrl) {
         setCurrentImage(newUrl);
         onInstructionApplied(newUrl);
+        // Reset rotation/scale visual — it's now baked into the new image
+        if (activeTool === 'rotate') setRotations(prev => { const n = { ...prev }; delete n[id]; return n; });
+        if (activeTool === 'scale') setScales(prev => { const n = { ...prev }; delete n[id]; return n; });
         setRescanning(true);
         try {
           const newObjects = await segmentImage(newUrl);
@@ -230,7 +244,7 @@ export function ArrangeView({
         } finally { setRescanning(false); }
       }
     } finally { setApplying(false); setApplyingLabel(''); }
-  }, [draggingId, activeTool, positions, rotations, scales, currentObjects, currentImage, onInstructionApplied]);
+  }, [draggingId, activeTool, currentObjects, currentImage, onInstructionApplied]);
 
   const handleDeleteConfirm = useCallback(async (obj: SegmentedObject) => {
     setDeleteConfirmId(null);
@@ -396,12 +410,13 @@ export function ArrangeView({
               return (
                 <div
                   key={obj.id}
+                  ref={el => { objectRefs.current[obj.id] = el; }}
                   onMouseDown={e => handleMouseDown(e, obj.id)}
                   style={{
                     position: 'absolute',
                     left: `${pos.x}%`,
                     top: `${pos.y}%`,
-                    transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${scale}${isDragging ? ' scale(1.08)' : ''})`,
+                    transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${isDragging ? scale * 1.08 : scale})`,
                     cursor: toolCursor,
                     zIndex: isDragging || isSelected ? 100 : 10,
                     transition: isDragging ? 'none' : 'left 0.1s, top 0.1s, transform 0.15s var(--ease-spring)',
