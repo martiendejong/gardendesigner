@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
 import path from 'path';
 
-const DB_PATH = path.join(__dirname, '../../../../garden.db');
+const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), '..', 'garden.db');
 
 let db: Database.Database;
 

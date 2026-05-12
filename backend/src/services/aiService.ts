@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import type { GardenPreferences, DesignResponse, SegmentedObject } from '../types/garden';
 
-const LOG_FILE = 'C:\\projects\\gardendesigner\\prompt.log';
+const LOG_FILE = process.env.LOG_FILE || require('path').join(process.cwd(), '..', 'prompt.log');
 
 function log(label: string, content: string) {
   try {
