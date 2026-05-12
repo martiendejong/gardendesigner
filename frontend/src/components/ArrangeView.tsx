@@ -76,6 +76,7 @@ export function ArrangeView({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [implementingSuggestions, setImplementingSuggestions] = useState(false);
+  const [arrangeError, setArrangeError] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const objectRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -96,22 +97,28 @@ export function ArrangeView({
     setPositions(init);
   }, [objects]);
 
+  const doRescan = useCallback(async (imageToScan: string) => {
+    setRescanning(true);
+    setArrangeError(null);
+    try {
+      const found = await segmentImage(imageToScan);
+      if (found.length > 0) {
+        setCurrentObjects(found);
+        const np: Record<string, { x: number; y: number }> = {};
+        for (const o of found) np[o.id] = { x: o.x, y: o.y };
+        setPositions(np);
+      } else {
+        setArrangeError('No objects detected. Try the Rescan button to try again.');
+      }
+    } catch (err) {
+      setArrangeError(`Scan failed: ${err instanceof Error ? err.message : 'unknown error'}. Try the Rescan button.`);
+    } finally { setRescanning(false); }
+  }, []);
+
   // Auto-scan on mount when no objects provided
   useEffect(() => {
     if (objects.length === 0 && !initialSegmenting) {
-      const doScan = async () => {
-        setRescanning(true);
-        try {
-          const found = await segmentImage(imageUrl);
-          if (found.length > 0) {
-            setCurrentObjects(found);
-            const np: Record<string, { x: number; y: number }> = {};
-            for (const o of found) np[o.id] = { x: o.x, y: o.y };
-            setPositions(np);
-          }
-        } finally { setRescanning(false); }
-      };
-      doScan();
+      doRescan(imageUrl);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -224,6 +231,7 @@ export function ArrangeView({
 
     setApplying(true);
     setApplyingLabel(obj.label);
+    setArrangeError(null);
     try {
       const newUrl = await applyInstruction(currentImage, instruction);
       if (newUrl) {
@@ -232,24 +240,21 @@ export function ArrangeView({
         // Reset rotation/scale visual — it's now baked into the new image
         if (activeTool === 'rotate') setRotations(prev => { const n = { ...prev }; delete n[id]; return n; });
         if (activeTool === 'scale') setScales(prev => { const n = { ...prev }; delete n[id]; return n; });
-        setRescanning(true);
-        try {
-          const newObjects = await segmentImage(newUrl);
-          if (newObjects.length > 0) {
-            setCurrentObjects(newObjects);
-            const np: Record<string, { x: number; y: number }> = {};
-            for (const o of newObjects) np[o.id] = { x: o.x, y: o.y };
-            setPositions(np);
-          }
-        } finally { setRescanning(false); }
+        await doRescan(newUrl);
       }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Operation failed';
+      setArrangeError(msg === 'insufficient_credits' ? 'Not enough credits.' : msg);
     } finally { setApplying(false); setApplyingLabel(''); }
-  }, [draggingId, activeTool, currentObjects, currentImage, onInstructionApplied]);
+  }, [draggingId, activeTool, currentObjects, currentImage, onInstructionApplied, doRescan]);
 
   const handleDeleteConfirm = useCallback(async (obj: SegmentedObject) => {
     setDeleteConfirmId(null);
     if (selectedId === obj.id) setSelectedId(null);
-    const instruction = `Remove the ${obj.label} from the ${posDesc(obj.x, obj.y)}. Keep everything else exactly as it is.`;
+    setArrangeError(null);
+    // Use the current dragged position if available, fall back to segmentation position
+    const pos = positions[obj.id] ?? { x: obj.x, y: obj.y };
+    const instruction = `Remove the ${obj.label} located at the ${posDesc(pos.x, pos.y)} of the image. Erase it cleanly and fill in the background naturally. Keep everything else exactly as it is.`;
     setApplying(true);
     setApplyingLabel(obj.label);
     try {
@@ -260,8 +265,11 @@ export function ArrangeView({
         setCurrentObjects(prev => prev.filter(o => o.id !== obj.id));
         setPositions(prev => { const next = { ...prev }; delete next[obj.id]; return next; });
       }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Delete failed';
+      setArrangeError(msg === 'insufficient_credits' ? 'Not enough credits to delete this object.' : `Delete failed: ${msg}`);
     } finally { setApplying(false); setApplyingLabel(''); }
-  }, [currentImage, onInstructionApplied, selectedId]);
+  }, [currentImage, onInstructionApplied, selectedId, positions]);
 
   const handlePlaceSuggested = useCallback(async (item: SuggestedPlacement) => {
     setApplying(true);
@@ -297,19 +305,10 @@ export function ArrangeView({
         onInstructionApplied(newUrl);
         setShowSuggestions(false);
         setSuggestions([]);
-        setRescanning(true);
-        try {
-          const newObjects = await segmentImage(newUrl);
-          if (newObjects.length > 0) {
-            setCurrentObjects(newObjects);
-            const np: Record<string, { x: number; y: number }> = {};
-            for (const o of newObjects) np[o.id] = { x: o.x, y: o.y };
-            setPositions(np);
-          }
-        } finally { setRescanning(false); }
+        await doRescan(newUrl);
       }
     } finally { setImplementingSuggestions(false); }
-  }, [currentImage, onInstructionApplied]);
+  }, [currentImage, onInstructionApplied, doRescan]);
 
   const filteredObjects = (activePanel === 'overview' || activePanel === 'layers' || activePanel === 'ai-assist')
     ? currentObjects
@@ -373,6 +372,18 @@ export function ArrangeView({
           </svg>
         </button>
       </div>
+
+      {arrangeError && (
+        <div style={{
+          padding: '7px 20px', background: 'rgba(204,107,85,0.1)',
+          borderBottom: '1px solid rgba(204,107,85,0.2)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          flexShrink: 0,
+        }}>
+          <span style={{ fontSize: 12, color: '#cc6b55' }}>{arrangeError}</span>
+          <button onClick={() => setArrangeError(null)} style={{ background: 'none', border: 'none', color: '#cc6b55', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>×</button>
+        </div>
+      )}
 
       {/* Main content */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
@@ -548,11 +559,27 @@ export function ArrangeView({
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: 8 }}>
                 {filteredObjects.length === 0 ? (
-                  <p style={{ padding: '20px 6px', fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.6 }}>
-                    {currentObjects.length === 0
-                      ? 'No objects scanned yet.'
-                      : `No ${activePanel} objects found.`}
-                  </p>
+                  <div style={{ padding: '20px 8px', textAlign: 'center' }}>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 10 }}>
+                      {currentObjects.length === 0
+                        ? 'No objects detected.'
+                        : `No ${activePanel} objects found.`}
+                    </p>
+                    {currentObjects.length === 0 && (
+                      <button
+                        onClick={() => doRescan(currentImage)}
+                        disabled={rescanning}
+                        style={{
+                          padding: '6px 14px', borderRadius: 6, cursor: rescanning ? 'not-allowed' : 'pointer',
+                          background: 'var(--green-subtle)', border: '1px solid rgba(122,182,72,0.25)',
+                          color: 'var(--green-400)', fontSize: 11, fontWeight: 600,
+                          fontFamily: 'var(--font-sans)', opacity: rescanning ? 0.5 : 1,
+                        }}
+                      >
+                        {rescanning ? 'Scanning…' : 'Rescan'}
+                      </button>
+                    )}
+                  </div>
                 ) : filteredObjects.map(obj => (
                   <div
                     key={obj.id}

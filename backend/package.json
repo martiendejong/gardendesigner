@@ -8,17 +8,25 @@
     "build": "npx tsc"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.10.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^8.0.7",
     "openai": "^4.78.0",
     "replicate": "^1.0.1",
     "sharp": "^0.33.5"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.0.0",
+    "@types/nodemailer": "^8.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   }

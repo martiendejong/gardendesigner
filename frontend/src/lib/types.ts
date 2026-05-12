@@ -1,3 +1,14 @@
+export interface AuthUser {
+  id: number;
+  firstname: string;
+  lastname: string;
+  accountname: string;
+  email: string;
+  credits: number;
+  isAdmin: boolean;
+  hasPassword: boolean;
+}
+
 export interface GardenSliders {
   tranquilVibrant: number;
   openSheltered: number;
@@ -41,6 +52,28 @@ export interface HistoryItem {
   type: 'upload' | 'generated' | 'instruction';
   label: string;
   timestamp: number;
+}
+
+export interface ProjectHistoryItem {
+  id: number;
+  imageUrl: string;
+  type: string;
+  label: string;
+  createdAt: number;
+}
+
+export interface Project {
+  id: number;
+  name: string;
+  latestImage: string;
+  preferences: GardenPreferences | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ProjectDetail extends Project {
+  originalImage: string;
+  history: ProjectHistoryItem[];
 }
 
 export interface DesignResult {

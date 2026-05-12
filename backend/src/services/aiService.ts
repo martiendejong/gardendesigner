@@ -302,13 +302,13 @@ export async function segmentObjects(imageDataUrl: string): Promise<SegmentedObj
   const resizedDataUrl = await resizeForAPI(buffer);
 
   const res = await openai.chat.completions.create({
-    model: 'gpt-5.5',
+    model: 'gpt-4o',
     response_format: { type: 'json_object' },
     messages: [
       {
         role: 'system',
         content:
-          'You are a computer vision system. Identify distinct objects and areas in garden photos and return their positions as percentages. Respond with valid JSON only.',
+          'You are a computer vision system. Identify distinct objects in garden photos and return their positions as percentages. Always respond with valid JSON containing an "objects" array.',
       },
       {
         role: 'user',
@@ -316,39 +316,47 @@ export async function segmentObjects(imageDataUrl: string): Promise<SegmentedObj
           { type: 'image_url', image_url: { url: resizedDataUrl, detail: 'high' } },
           {
             type: 'text',
-            text: `Identify all distinct objects and areas visible in this garden photo. For each object, estimate its center position and bounding box as percentages of the image dimensions (0-100).
+            text: `Identify all distinct objects visible in this garden photo. Estimate each object's center position as a percentage of image width (x) and height (y), 0-100.
 
-Look for: trees, paths, seating, planters, water features, lawn areas, borders, structures, fences, flower beds, hedges, ornaments, patio, shed, barbecue, bicycle.
+Look for: trees, shrubs, lawn, paths, seating, planters, water features, borders, fences, flower beds, hedges, ornaments, patio, shed, barbecue, bicycle, walls.
 
-Return up to 15 objects as JSON:
+Always return this exact JSON structure even if few objects are found:
 {
   "objects": [
     {
       "id": "obj_1",
-      "label": "<descriptive name>",
-      "emoji": "<single relevant emoji>",
-      "x": <center x as % of width, 0-100>,
-      "y": <center y as % of height, 0-100>,
-      "width": <bounding box width as %, 5-60>,
-      "height": <bounding box height as %, 5-60>
+      "label": "descriptive name",
+      "emoji": "single emoji",
+      "x": 50,
+      "y": 50,
+      "width": 20,
+      "height": 20
     }
   ]
 }
 
-Be precise with positions. Use the full image coordinate space.`,
+Return 5-15 objects. Use the full 0-100 coordinate space. x=0 is left edge, x=100 is right edge, y=0 is top, y=100 is bottom.`,
           },
         ],
       },
     ],
-    max_completion_tokens: 1500,
+    max_tokens: 2000,
   });
 
+  const raw = res.choices[0]?.message?.content ?? '{}';
+  log('segmentObjects raw response', raw.slice(0, 1000));
+
   try {
-    const parsed = JSON.parse(res.choices[0].message.content || '{}') as {
-      objects?: SegmentedObject[];
-    };
-    return (parsed.objects ?? []).slice(0, 15);
-  } catch {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    // Handle various response shapes the model might return
+    const candidates = parsed.objects ?? parsed.items ?? parsed.elements ?? parsed.results ?? Object.values(parsed).find(v => Array.isArray(v));
+    if (Array.isArray(candidates) && candidates.length > 0) {
+      return (candidates as SegmentedObject[]).slice(0, 15);
+    }
+    log('segmentObjects', `No objects array found in response. Keys: ${Object.keys(parsed).join(', ')}`);
+    return [];
+  } catch (e) {
+    log('segmentObjects parse error', String(e));
     return [];
   }
 }
