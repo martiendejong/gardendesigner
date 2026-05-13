@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import type { SegmentedObject, SuggestedPlacement } from '../lib/types';
+import type { SegmentedObject, SuggestedPlacement, ProductGroup, Product } from '../lib/types';
 import { applyInstruction, segmentImage, getSuggestions, type GardenSuggestion } from '../lib/api';
 import { useI18n } from '../lib/i18n';
 import { LeftSidebar, type SidePanel } from './LeftSidebar';
@@ -11,6 +11,7 @@ interface Props {
   objects: SegmentedObject[];
   segmenting: boolean;
   suggestedPlacements: SuggestedPlacement[];
+  productGroups: ProductGroup[];
   onBack: () => void;
   onInstructionApplied: (newUrl: string) => void;
 }
@@ -51,7 +52,7 @@ function ObjectThumbnail({ imageUrl, x, y, size = 48 }: { imageUrl: string; x: n
 
 export function ArrangeView({
   imageUrl, objects, segmenting: initialSegmenting,
-  suggestedPlacements, onBack, onInstructionApplied,
+  suggestedPlacements, productGroups, onBack, onInstructionApplied,
 }: Props) {
   const { t } = useI18n();
   const [currentImage, setCurrentImage] = useState(imageUrl);
@@ -77,6 +78,7 @@ export function ArrangeView({
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [implementingSuggestions, setImplementingSuggestions] = useState(false);
   const [arrangeError, setArrangeError] = useState<string | null>(null);
+  const [addingCategory, setAddingCategory] = useState<'plants' | 'hardscape' | 'structures' | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const objectRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -310,6 +312,25 @@ export function ArrangeView({
     } finally { setImplementingSuggestions(false); }
   }, [currentImage, onInstructionApplied, doRescan]);
 
+  const handleAddProduct = useCallback(async (product: Product) => {
+    setAddingCategory(null);
+    setApplying(true);
+    setApplyingLabel(product.name);
+    setArrangeError(null);
+    try {
+      const instruction = `Add a ${product.name} to the garden.${product.description ? ' ' + product.description : ''} Keep everything else exactly as it is.`;
+      const newUrl = await applyInstruction(currentImage, instruction);
+      if (newUrl) {
+        setCurrentImage(newUrl);
+        onInstructionApplied(newUrl);
+        await doRescan(newUrl);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed';
+      setArrangeError(msg === 'insufficient_credits' ? 'Not enough credits.' : msg);
+    } finally { setApplying(false); setApplyingLabel(''); }
+  }, [currentImage, onInstructionApplied, doRescan]);
+
   const filteredObjects = (activePanel === 'overview' || activePanel === 'layers' || activePanel === 'ai-assist')
     ? currentObjects
     : currentObjects.filter(o => categorize(o.label) === (activePanel as 'plants' | 'hardscape' | 'structures'));
@@ -323,7 +344,11 @@ export function ArrangeView({
     : activeTool === 'move' ? (draggingId ? 'grabbing' : 'grab')
     : 'grab';
 
-  const panelTitle = activeTool === 'add-plant' ? 'Add Plant'
+  const addCategoryLabel = activePanel === 'plants' ? 'Add Plant' : activePanel === 'hardscape' ? 'Add Hardscape' : activePanel === 'structures' ? 'Add Structure' : null;
+
+  const panelTitle = addingCategory && addingCategory === activePanel
+    ? addCategoryLabel!
+    : activeTool === 'add-plant' && !addingCategory ? 'Add Plant'
     : activeTool === 'select' && selectedObj ? 'Selected Object'
     : activePanel === 'overview' ? `All Objects (${currentObjects.length})`
     : activePanel === 'plants' ? `Plants (${filteredObjects.length})`
@@ -335,7 +360,7 @@ export function ArrangeView({
     : activeTool === 'rotate' ? 'Drag an object to rotate it.'
     : activeTool === 'scale' ? 'Drag up/down on an object to resize it.'
     : activeTool === 'delete' ? 'Click an object to delete it.'
-    : activeTool === 'add-plant' ? 'Select a plant from the panel to add it.'
+    : addingCategory ? `Select a ${addingCategory} product to add to the garden.`
     : 'Click an object to select and inspect it.';
 
   return (
@@ -480,18 +505,85 @@ export function ArrangeView({
           overflow: 'hidden',
         }}>
           <div style={{
-            padding: '12px 14px 10px', flexShrink: 0,
+            padding: '10px 12px', flexShrink: 0,
             borderBottom: '1px solid var(--garden-border)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6,
           }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--green-400)', letterSpacing: '0.06em' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--green-400)', letterSpacing: '0.06em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {panelTitle}
             </span>
+            {addCategoryLabel && !addingCategory && (activePanel === 'plants' || activePanel === 'hardscape' || activePanel === 'structures') && (
+              <button
+                onClick={() => setAddingCategory(activePanel as 'plants' | 'hardscape' | 'structures')}
+                disabled={isWorking}
+                style={{
+                  flexShrink: 0, padding: '4px 9px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+                  background: 'var(--green-subtle)', border: '1px solid rgba(122,182,72,0.3)',
+                  color: 'var(--green-400)', cursor: isWorking ? 'not-allowed' : 'pointer',
+                  fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: 4,
+                  opacity: isWorking ? 0.5 : 1,
+                }}
+              >
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                {addCategoryLabel}
+              </button>
+            )}
+            {addingCategory && (
+              <button onClick={() => setAddingCategory(null)} style={{ flexShrink: 0, padding: '4px 9px', borderRadius: 6, fontSize: 10, background: 'var(--garden-card)', border: '1px solid var(--garden-border)', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+                Cancel
+              </button>
+            )}
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto' }}>
 
+            {/* Product picker from linked product groups */}
+            {addingCategory && (() => {
+              const catMap: Record<string, 'Plants' | 'Hardscape' | 'Structures'> = { plants: 'Plants', hardscape: 'Hardscape', structures: 'Structures' };
+              const catLabel = catMap[addingCategory];
+              const matchingGroups = productGroups.filter(g => g.category === catLabel);
+              const allProducts = matchingGroups.flatMap(g => g.products);
+              return allProducts.length === 0 ? (
+                <p style={{ padding: '24px 14px', fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.6 }}>
+                  No {catLabel.toLowerCase()} products available.<br />Ask your administrator to link product groups.
+                </p>
+              ) : (
+                <div>
+                  {matchingGroups.map(g => (
+                    <div key={g.id}>
+                      {matchingGroups.length > 1 && (
+                        <div style={{ padding: '6px 12px 3px', fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', borderBottom: '1px solid var(--garden-border)' }}>{g.name.toUpperCase()}</div>
+                      )}
+                      {g.products.map(product => (
+                        <div key={product.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderBottom: '1px solid var(--garden-border)' }}>
+                          {product.images.length > 0 ? (
+                            <div style={{ width: 36, height: 36, borderRadius: 6, flexShrink: 0, overflow: 'hidden', border: '1px solid var(--garden-border)' }}>
+                              <img src={product.images[0].image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            </div>
+                          ) : (
+                            <div style={{ width: 36, height: 36, borderRadius: 6, flexShrink: 0, background: 'var(--green-subtle)', border: '1px solid rgba(122,182,72,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🌿</div>
+                          )}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{product.name}</div>
+                            {product.description && <div style={{ fontSize: 9, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{product.description}</div>}
+                          </div>
+                          <button
+                            onClick={() => handleAddProduct(product)}
+                            disabled={isWorking}
+                            style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, background: 'transparent', border: '1.5px solid rgba(122,182,72,0.4)', color: 'var(--green-400)', cursor: isWorking ? 'not-allowed' : 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: isWorking ? 0.5 : 1 }}
+                          >+</button>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
             {/* Select tool + object selected → show details */}
-            {activeTool === 'select' && selectedObj ? (
+            {!addingCategory && activeTool === 'select' && selectedObj ? (
               <div style={{ padding: 14 }}>
                 <ObjectThumbnail imageUrl={currentImage} x={selectedObj.x} y={selectedObj.y} size={80} />
                 <div style={{ marginTop: 10 }}>
@@ -519,7 +611,7 @@ export function ArrangeView({
               </div>
 
             /* Add Plant tool → show suggested placements */
-            ) : activeTool === 'add-plant' ? (
+            ) : !addingCategory && activeTool === 'add-plant' ? (
               <div>
                 {suggestedPlacements.length === 0 ? (
                   <p style={{ padding: '24px 14px', fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.6 }}>
@@ -556,7 +648,7 @@ export function ArrangeView({
               </div>
 
             /* Default → filtered object list with thumbnails */
-            ) : (
+            ) : !addingCategory ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: 8 }}>
                 {filteredObjects.length === 0 ? (
                   <div style={{ padding: '20px 8px', textAlign: 'center' }}>
@@ -603,7 +695,7 @@ export function ArrangeView({
                   </div>
                 ))}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
@@ -613,7 +705,8 @@ export function ArrangeView({
         activeTool={activeTool}
         onToolChange={tool => {
           setActiveTool(tool);
-          if (tool === 'add-plant') setActivePanel('plants');
+          if (tool === 'add-plant') { setActivePanel('plants'); setAddingCategory('plants'); }
+          else setAddingCategory(null);
           if (tool !== 'select') setSelectedId(null);
         }}
         onAIRecommend={handleAIRecommend}

@@ -60,6 +60,40 @@ function initSchema(db: Database.Database) {
       created_at INTEGER DEFAULT (strftime('%s','now')),
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS product_groups (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT,
+      category TEXT NOT NULL CHECK(category IN ('Plants','Hardscape','Structures')),
+      image TEXT,
+      created_at INTEGER DEFAULT (strftime('%s','now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS products (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_group_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      created_at INTEGER DEFAULT (strftime('%s','now')),
+      FOREIGN KEY (product_group_id) REFERENCES product_groups(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS product_images (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL,
+      image TEXT NOT NULL,
+      created_at INTEGER DEFAULT (strftime('%s','now')),
+      FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS user_product_groups (
+      user_id INTEGER NOT NULL,
+      product_group_id INTEGER NOT NULL,
+      PRIMARY KEY (user_id, product_group_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (product_group_id) REFERENCES product_groups(id) ON DELETE CASCADE
+    );
   `);
 
   // Seed default admin with known password so the system is immediately usable

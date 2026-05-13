@@ -10,10 +10,10 @@ import { AdminPanel } from './components/AdminPanel';
 import { ProjectsScreen } from './components/ProjectsScreen';
 import {
   generateDesign, applyInstruction, placeObjectImage, setAuthToken, getMe,
-  getProject, createProject, addProjectHistory, updateProject,
+  getProject, createProject, addProjectHistory, updateProject, getUserProductGroups,
 } from './lib/api';
 import { useI18n, getLoadingMessages, getApplyMessages } from './lib/i18n';
-import type { GardenPreferences, DesignResult, SegmentedObject, HistoryItem, AuthUser, Project } from './lib/types';
+import type { GardenPreferences, DesignResult, SegmentedObject, HistoryItem, AuthUser, Project, ProductGroup } from './lib/types';
 
 const DEFAULT_PREFS: GardenPreferences = {
   mood: 'tranquil',
@@ -64,6 +64,8 @@ export default function App() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
+  const [userProductGroups, setUserProductGroups] = useState<ProductGroup[]>([]);
+
   // Project tracking
   const [currentProjectId, setCurrentProjectId] = useState<number | null>(null);
   // Keep a ref to the original uploaded image for project creation
@@ -77,7 +79,11 @@ export default function App() {
       setAuthToken(stored);
       setAuthTokenState(stored);
       getMe()
-        .then(user => { setCurrentUser(user); if (user.isAdmin) setShowAdmin(true); })
+        .then(user => {
+          setCurrentUser(user);
+          if (user.isAdmin) setShowAdmin(true);
+          getUserProductGroups().then(setUserProductGroups).catch(() => {});
+        })
         .catch(() => {
           localStorage.removeItem('garden_token');
           setAuthTokenState(null);
@@ -95,6 +101,7 @@ export default function App() {
     setAuthTokenState(token);
     setCurrentUser(user);
     if (user.isAdmin) setShowAdmin(true);
+    getUserProductGroups().then(setUserProductGroups).catch(() => {});
     if (window.location.search) {
       window.history.replaceState({}, '', window.location.pathname);
     }
@@ -363,6 +370,7 @@ export default function App() {
           objects={segmentedObjects}
           segmenting={segmenting}
           suggestedPlacements={result?.suggestedPlacements ?? []}
+          productGroups={userProductGroups}
           onBack={() => setPhase('design')}
           onInstructionApplied={async (newUrl) => {
             const label = 'Object moved';

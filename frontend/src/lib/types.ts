@@ -76,6 +76,29 @@ export interface ProjectDetail extends Project {
   history: ProjectHistoryItem[];
 }
 
+export interface ProductImage {
+  id: number;
+  productId: number;
+  image: string;
+}
+
+export interface Product {
+  id: number;
+  productGroupId: number;
+  name: string;
+  description: string;
+  images: ProductImage[];
+}
+
+export interface ProductGroup {
+  id: number;
+  name: string;
+  description: string;
+  category: 'Plants' | 'Hardscape' | 'Structures';
+  image: string | null;
+  products: Product[];
+}
+
 export interface DesignResult {
   imageUrl: string;
   harmonyLevel: number;

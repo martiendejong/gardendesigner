@@ -1,4 +1,4 @@
-import type { GardenPreferences, DesignResult, SuggestedObject, SegmentedObject, AuthUser, Project, ProjectDetail } from './types';
+import type { GardenPreferences, DesignResult, SuggestedObject, SegmentedObject, AuthUser, Project, ProjectDetail, ProductGroup, Product, ProductImage } from './types';
 
 const API = '/api';
 
@@ -110,6 +110,91 @@ export async function adminResendInvite(id: number): Promise<void> {
 
 export async function adminDeleteUser(id: number): Promise<void> {
   await fetch(`${API}/admin/users/${id}`, { method: 'DELETE', headers: authHeaders() });
+}
+
+export async function adminGetUserProductGroups(userId: number): Promise<number[]> {
+  const res = await fetch(`${API}/admin/users/${userId}/product-groups`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed');
+  const d = await res.json() as { groupIds: number[] };
+  return d.groupIds;
+}
+
+export async function adminSetUserProductGroups(userId: number, groupIds: number[]): Promise<void> {
+  await fetch(`${API}/admin/users/${userId}/product-groups`, {
+    method: 'PUT', headers: authHeaders(), body: JSON.stringify({ groupIds }),
+  });
+}
+
+export async function adminGetProductGroups(): Promise<ProductGroup[]> {
+  const res = await fetch(`${API}/admin/product-groups`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed');
+  const d = await res.json() as { groups: (Omit<ProductGroup, 'products'> & { products?: Product[] })[] };
+  return d.groups.map(g => ({ ...g, products: g.products ?? [] }));
+}
+
+export async function adminGetProductGroup(id: number): Promise<ProductGroup> {
+  const res = await fetch(`${API}/admin/product-groups/${id}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed');
+  const d = await res.json() as { group: ProductGroup };
+  return d.group;
+}
+
+export async function adminCreateProductGroup(data: { name: string; description: string; category: string; image: string | null }): Promise<ProductGroup> {
+  const res = await fetch(`${API}/admin/product-groups`, {
+    method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed');
+  const d = await res.json() as { group: ProductGroup };
+  return { ...d.group, products: [] };
+}
+
+export async function adminUpdateProductGroup(id: number, data: Partial<{ name: string; description: string; category: string; image: string | null }>): Promise<void> {
+  await fetch(`${API}/admin/product-groups/${id}`, {
+    method: 'PATCH', headers: authHeaders(), body: JSON.stringify(data),
+  });
+}
+
+export async function adminDeleteProductGroup(id: number): Promise<void> {
+  await fetch(`${API}/admin/product-groups/${id}`, { method: 'DELETE', headers: authHeaders() });
+}
+
+export async function adminCreateProduct(groupId: number, data: { name: string; description: string }): Promise<Product> {
+  const res = await fetch(`${API}/admin/product-groups/${groupId}/products`, {
+    method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed');
+  const d = await res.json() as { product: Product };
+  return d.product;
+}
+
+export async function adminUpdateProduct(id: number, data: Partial<{ name: string; description: string }>): Promise<void> {
+  await fetch(`${API}/admin/products/${id}`, {
+    method: 'PATCH', headers: authHeaders(), body: JSON.stringify(data),
+  });
+}
+
+export async function adminDeleteProduct(id: number): Promise<void> {
+  await fetch(`${API}/admin/products/${id}`, { method: 'DELETE', headers: authHeaders() });
+}
+
+export async function adminAddProductImage(productId: number, image: string): Promise<ProductImage> {
+  const res = await fetch(`${API}/admin/products/${productId}/images`, {
+    method: 'POST', headers: authHeaders(), body: JSON.stringify({ image }),
+  });
+  if (!res.ok) throw new Error('Failed');
+  const d = await res.json() as { image: ProductImage };
+  return d.image;
+}
+
+export async function adminDeleteProductImage(id: number): Promise<void> {
+  await fetch(`${API}/admin/product-images/${id}`, { method: 'DELETE', headers: authHeaders() });
+}
+
+export async function getUserProductGroups(): Promise<ProductGroup[]> {
+  const res = await fetch(`${API}/product-groups`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed');
+  const d = await res.json() as { groups: ProductGroup[] };
+  return d.groups;
 }
 
 // ─── Projects ────────────────────────────────────────────────────────────────
