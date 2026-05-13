@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type { SegmentedObject, SuggestedPlacement, ProductGroup, Product } from '../lib/types';
-import { applyInstruction, segmentImage, getSuggestions, type GardenSuggestion } from '../lib/api';
+import { applyInstruction, placeObjectImage, segmentImage, getSuggestions, type GardenSuggestion } from '../lib/api';
 import { useI18n } from '../lib/i18n';
 import { LeftSidebar, type SidePanel } from './LeftSidebar';
 import { BottomToolbar, type DesignTool } from './BottomToolbar';
@@ -318,8 +318,15 @@ export function ArrangeView({
     setApplyingLabel(product.name);
     setArrangeError(null);
     try {
-      const instruction = `Add a ${product.name} to the garden.${product.description ? ' ' + product.description : ''} Keep everything else exactly as it is.`;
-      const newUrl = await applyInstruction(currentImage, instruction);
+      let newUrl: string;
+      if (product.images.length > 0) {
+        // Use the actual product image — gpt-image-2 composites it into the garden
+        newUrl = await placeObjectImage(currentImage, product.images[0].image, product.name);
+      } else {
+        // No image available: fall back to text instruction
+        const instruction = `Add a ${product.name} to the garden.${product.description ? ' ' + product.description : ''} Keep everything else exactly as it is.`;
+        newUrl = await applyInstruction(currentImage, instruction);
+      }
       if (newUrl) {
         setCurrentImage(newUrl);
         onInstructionApplied(newUrl);
